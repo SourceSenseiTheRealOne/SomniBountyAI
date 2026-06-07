@@ -1,0 +1,310 @@
+@import "tailwindcss";
+
+:root {
+  --background: #02050a;
+  --foreground: #eafff7;
+  --ink-muted: #7e99b0;
+  --panel: #060d14;
+  --panel-strong: #08121c;
+  --hairline: rgba(189, 255, 228, 0.14);
+  --emerald: #49f7a9;
+  --cyan: #5ee7ff;
+  --gold: #f0cd6e;
+  --violet: #a48bff;
+  --danger: #ff5f7a;
+
+  /* holographic iridescent sweep */
+  --iris: linear-gradient(
+    115deg,
+    #49f7a9 0%,
+    #5ee7ff 26%,
+    #a48bff 52%,
+    #f0cd6e 74%,
+    #49f7a9 100%
+  );
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-display);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-height: 100%;
+  background: var(--background);
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100%;
+  margin: 0;
+  overflow-x: hidden;
+  background:
+    radial-gradient(circle at 12% 4%, rgba(73, 247, 169, 0.2), transparent 30rem),
+    radial-gradient(circle at 82% 6%, rgba(94, 231, 255, 0.17), transparent 36rem),
+    radial-gradient(circle at 50% 40%, rgba(164, 139, 255, 0.12), transparent 30rem),
+    radial-gradient(circle at 90% 78%, rgba(240, 205, 110, 0.12), transparent 24rem),
+    radial-gradient(circle at 6% 86%, rgba(0, 170, 155, 0.16), transparent 26rem),
+    linear-gradient(160deg, #02050a 0%, #04110f 34%, #030d14 60%, #010305 100%);
+  background-attachment: fixed;
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  letter-spacing: 0.002em;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+::selection {
+  background: rgba(94, 231, 255, 0.34);
+  color: #f8fffb;
+}
+
+/* ---------- Aurora drift behind everything ---------- */
+.aurora {
+  position: fixed;
+  inset: -20%;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.55;
+  background:
+    radial-gradient(40% 32% at 22% 28%, rgba(73, 247, 169, 0.4), transparent 70%),
+    radial-gradient(36% 30% at 78% 22%, rgba(94, 231, 255, 0.34), transparent 70%),
+    radial-gradient(44% 36% at 62% 74%, rgba(164, 139, 255, 0.3), transparent 70%),
+    radial-gradient(30% 28% at 30% 82%, rgba(240, 205, 110, 0.24), transparent 70%);
+  filter: blur(36px) saturate(135%);
+  animation: aurora-drift 22s ease-in-out infinite alternate;
+}
+
+@keyframes aurora-drift {
+  0% {
+    transform: translate3d(-3%, -2%, 0) scale(1.05) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(3%, 2%, 0) scale(1.12) rotate(4deg);
+  }
+  100% {
+    transform: translate3d(-2%, 3%, 0) scale(1.08) rotate(-3deg);
+  }
+}
+
+/* ---------- Fine grid + grain overlay ---------- */
+.noise::before {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  content: "";
+  opacity: 0.05;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 3rem 3rem;
+  mask-image: radial-gradient(circle at center, black, transparent 80%);
+}
+
+.noise::after {
+  position: fixed;
+  inset: 0;
+  z-index: 41;
+  pointer-events: none;
+  content: "";
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+}
+
+/* faint scanline drift for the 2060 console feel */
+.scanlines::before {
+  position: fixed;
+  inset: 0;
+  z-index: 39;
+  pointer-events: none;
+  content: "";
+  opacity: 0.4;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(255, 255, 255, 0.025) 0px,
+    rgba(255, 255, 255, 0.025) 1px,
+    transparent 2px,
+    transparent 4px
+  );
+  mask-image: linear-gradient(transparent, black 18%, black 82%, transparent);
+  animation: scan-roll 8s linear infinite;
+}
+
+@keyframes scan-roll {
+  to {
+    background-position: 0 -200px;
+  }
+}
+
+/* ---------- Dimensional holographic bezel ---------- */
+.bezel {
+  position: relative;
+  border: 1px solid rgba(188, 255, 227, 0.14);
+  border-radius: inherit;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.02)),
+    rgba(255, 255, 255, 0.03);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 0 0 1px rgba(73, 247, 169, 0.04),
+    0 26px 90px rgba(0, 0, 0, 0.42),
+    0 2px 10px rgba(73, 247, 169, 0.06);
+  backdrop-filter: blur(6px);
+}
+
+/* iridescent light running along the bezel edge */
+.bezel::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: var(--iris);
+  background-size: 280% 280%;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0.35;
+  animation: iris-flow 12s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes iris-flow {
+  to {
+    background-position: 280% 0;
+  }
+}
+
+.bezel-core {
+  position: relative;
+  border: 1px solid rgba(188, 255, 227, 0.1);
+  background:
+    radial-gradient(circle at 18% 0%, rgba(73, 247, 169, 0.12), transparent 24rem),
+    radial-gradient(circle at 92% 8%, rgba(94, 231, 255, 0.08), transparent 22rem),
+    linear-gradient(160deg, rgba(9, 24, 22, 0.94), rgba(2, 7, 9, 0.97));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -40px 80px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+
+/* sheen sweep across panel cores */
+.bezel-core::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    115deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.08) 46%,
+    rgba(255, 255, 255, 0.02) 52%,
+    transparent 60%
+  );
+  background-size: 240% 100%;
+  background-position: 180% 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+
+.bezel:hover .bezel-core::after {
+  opacity: 1;
+  animation: sheen-sweep 1.4s ease;
+}
+
+@keyframes sheen-sweep {
+  from {
+    background-position: 180% 0;
+  }
+  to {
+    background-position: -80% 0;
+  }
+}
+
+/* ---------- Accent helpers ---------- */
+.gold-line {
+  background: linear-gradient(90deg, transparent, rgba(240, 205, 110, 0.78), transparent);
+  box-shadow: 0 0 14px rgba(240, 205, 110, 0.32);
+}
+
+.iris-text {
+  background: var(--iris);
+  background-size: 220% 220%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: iris-flow 10s linear infinite;
+}
+
+.glow-ring {
+  box-shadow:
+    0 0 0 1px rgba(73, 247, 169, 0.18),
+    0 0 26px rgba(73, 247, 169, 0.22);
+}
+
+.chip-glass {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(188, 255, 227, 0.12);
+  backdrop-filter: blur(10px);
+}
+
+/* live status pulse */
+.pulse-dot {
+  box-shadow: 0 0 0 0 rgba(73, 247, 169, 0.6);
+  animation: pulse-dot 2.2s ease-out infinite;
+}
+
+@keyframes pulse-dot {
+  70% {
+    box-shadow: 0 0 0 8px rgba(73, 247, 169, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(73, 247, 169, 0);
+  }
+}
+
+.scrollbar-thin {
+  scrollbar-color: rgba(73, 247, 169, 0.4) transparent;
+  scrollbar-width: thin;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: linear-gradient(rgba(73, 247, 169, 0.5), rgba(94, 231, 255, 0.4));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

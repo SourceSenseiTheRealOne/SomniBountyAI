@@ -1,0 +1,41 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">SomniBounty AI mark</title>
+  <desc id="desc">Shield checkmark with agent circuit nodes and bounty coin.</desc>
+  <defs>
+    <linearGradient id="mark" x1="95" y1="65" x2="420" y2="445" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7CFFD0"/>
+      <stop offset="0.48" stop-color="#49F7A9"/>
+      <stop offset="1" stop-color="#5EE7FF"/>
+    </linearGradient>
+    <radialGradient id="coin" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(365 392) rotate(90) scale(67)">
+      <stop stop-color="#FFF4B8"/>
+      <stop offset="0.55" stop-color="#F0CD6E"/>
+      <stop offset="1" stop-color="#8D6818"/>
+    </radialGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="13" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.286 0 0 0 0 0.969 0 0 0 0 0.663 0 0 0 0.58 0"/>
+      <feBlend in="SourceGraphic"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="#02050A"/>
+  <circle cx="112" cy="92" r="146" fill="#49F7A9" opacity="0.14"/>
+  <circle cx="406" cy="410" r="166" fill="#5EE7FF" opacity="0.12"/>
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <path d="M97 178H50" stroke="#A48BFF" stroke-width="14"/>
+    <circle cx="32" cy="178" r="18" stroke="#A48BFF" stroke-width="14"/>
+    <path d="M97 242H48" stroke="#49F7A9" stroke-width="14"/>
+    <circle cx="30" cy="242" r="18" stroke="#49F7A9" stroke-width="14"/>
+    <path d="M415 178H462" stroke="#5EE7FF" stroke-width="14"/>
+    <circle cx="480" cy="178" r="18" stroke="#5EE7FF" stroke-width="14"/>
+    <path d="M415 242H464" stroke="#49F7A9" stroke-width="14"/>
+    <circle cx="482" cy="242" r="18" stroke="#49F7A9" stroke-width="14"/>
+  </g>
+  <g filter="url(#glow)">
+    <path d="M256 58L397 117.5V228C397 328 339 405 256 451C173 405 115 328 115 228V117.5L256 58Z" fill="#06110F" fill-opacity="0.92" stroke="url(#mark)" stroke-width="25" stroke-linejoin="round"/>
+    <path d="M181 246L234 297L334 179" stroke="#F4FFFA" stroke-width="39" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <circle cx="365" cy="393" r="67" fill="url(#coin)" stroke="#FFEAA3" stroke-width="10"/>
+  <circle cx="365" cy="393" r="38" fill="#07110F" fill-opacity="0.9"/>
+  <path d="M365 354V432M334 377H385M334 407H385" stroke="#F0CD6E" stroke-width="15" stroke-linecap="round"/>
+</svg>

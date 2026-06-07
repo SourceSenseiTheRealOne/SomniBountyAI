@@ -1,0 +1,60 @@
+<svg width="1280" height="480" viewBox="0 0 1280 480" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">SomniBounty AI simple banner</title>
+  <desc id="desc">A clean SomniBounty AI banner with shield mark, bounty coin, and concise product tagline.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1280" y2="480" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#02050A"/>
+      <stop offset="0.52" stop-color="#04110F"/>
+      <stop offset="1" stop-color="#070512"/>
+    </linearGradient>
+    <linearGradient id="mark" x1="402" y1="88" x2="586" y2="324" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7CFFD0"/>
+      <stop offset="0.5" stop-color="#49F7A9"/>
+      <stop offset="1" stop-color="#5EE7FF"/>
+    </linearGradient>
+    <linearGradient id="word" x1="622" y1="164" x2="1028" y2="214" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F3FFF9"/>
+      <stop offset="1" stop-color="#91EFD1"/>
+    </linearGradient>
+    <radialGradient id="coin" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(566 312) rotate(90) scale(42)">
+      <stop stop-color="#FFF4B8"/>
+      <stop offset="0.58" stop-color="#F0CD6E"/>
+      <stop offset="1" stop-color="#8D6818"/>
+    </radialGradient>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="160%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="18"/>
+    </filter>
+    <filter id="markGlow" x="-40%" y="-40%" width="180%" height="180%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="10" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.286 0 0 0 0 0.969 0 0 0 0 0.663 0 0 0 0.48 0"/>
+      <feBlend in="SourceGraphic"/>
+    </filter>
+  </defs>
+
+  <rect width="1280" height="480" rx="32" fill="url(#bg)"/>
+  <circle cx="292" cy="88" r="180" fill="#49F7A9" opacity="0.12" filter="url(#soft)"/>
+  <circle cx="1030" cy="390" r="230" fill="#5EE7FF" opacity="0.10" filter="url(#soft)"/>
+  <circle cx="660" cy="456" r="190" fill="#A48BFF" opacity="0.08" filter="url(#soft)"/>
+
+  <g opacity="0.15">
+    <path d="M0 80H1280" stroke="#E9FFF8"/>
+    <path d="M0 400H1280" stroke="#E9FFF8"/>
+    <path d="M160 0V480" stroke="#E9FFF8"/>
+    <path d="M1120 0V480" stroke="#E9FFF8"/>
+  </g>
+
+  <g transform="translate(330 70)" filter="url(#markGlow)">
+    <path d="M154 0L278 52.2V149.6C278 238.2 227 306.5 154 347C81 306.5 30 238.2 30 149.6V52.2L154 0Z" fill="#06110F" fill-opacity="0.94" stroke="url(#mark)" stroke-width="20" stroke-linejoin="round"/>
+    <path d="M88 161L135 207L224 103" stroke="#F4FFFA" stroke-width="32" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="235" cy="262" r="42" fill="url(#coin)" stroke="#FFEAA3" stroke-width="7"/>
+    <circle cx="235" cy="262" r="24" fill="#07110F" fill-opacity="0.9"/>
+    <path d="M235 237V289M214 252H248M214 273H248" stroke="#F0CD6E" stroke-width="9" stroke-linecap="round"/>
+  </g>
+
+  <g transform="translate(620 156)">
+    <text x="0" y="48" fill="url(#word)" font-family="Unbounded, Inter, Segoe UI, Arial, sans-serif" font-size="56" font-weight="800" letter-spacing="0">SomniBounty AI</text>
+    <text x="2" y="94" fill="#A8C9C1" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="22" font-weight="600">Autonomous security triage + bounty escrow on Somnia</text>
+    <rect x="2" y="128" width="390" height="1" fill="url(#mark)" opacity="0.72"/>
+    <text x="2" y="170" fill="#49F7A9" font-family="JetBrains Mono, Consolas, monospace" font-size="17" font-weight="700" letter-spacing="2.5">OBSERVE -> VERIFY -> PAY</text>
+  </g>
+</svg>

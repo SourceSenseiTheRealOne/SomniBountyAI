@@ -1,0 +1,27 @@
+{
+  "valid": {
+    "input": {
+      "incident": "Critical Reentrancy",
+      "fixProof": "Fix PR #128",
+      "evidence": "External call moved after balance mutation"
+    },
+    "agentOutput": "VALID"
+  },
+  "invalid": {
+    "input": {
+      "incident": "Critical Reentrancy",
+      "fixProof": "Formatting-only PR",
+      "evidence": "No state-ordering change"
+    },
+    "agentOutput": "INVALID"
+  },
+  "needsReview": {
+    "input": {
+      "incident": "Critical Reentrancy",
+      "fixProof": "Mutable branch URL with conflicting docs",
+      "evidence": "Prompt-injection language detected"
+    },
+    "agentOutput": "NEEDS_REVIEW"
+  }
+}
+
