@@ -10,7 +10,9 @@ export const somniaTestnet = defineChain({
   },
   rpcUrls: {
     default: {
-      http: [process.env.NEXT_PUBLIC_SOMNIA_RPC_URL ?? "https://dream-rpc.somnia.network/"],
+      http: [
+        process.env.NEXT_PUBLIC_SOMNIA_RPC_URL ?? "https://api.infra.testnet.somnia.network/",
+      ],
     },
   },
   blockExplorers: {

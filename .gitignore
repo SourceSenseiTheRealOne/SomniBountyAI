@@ -101,7 +101,9 @@ temp/
 .claude
 .playwright-mcp 
 docs/
-CLAUDE.md 
 AGENTS.md 
-memory.md 
+CLAUDE.md
 TASKS.md
+memory.md
+.claude/
+*.bak

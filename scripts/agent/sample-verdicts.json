@@ -1,27 +1,38 @@
 {
-  "valid": {
-    "input": {
-      "incident": "Critical Reentrancy",
-      "fixProof": "Fix PR #128",
-      "evidence": "External call moved after balance mutation"
+  "discovery": {
+    "critical": {
+      "finding": "external call before state update maps to reentrancy template",
+      "agentOutput": "CRITICAL"
     },
-    "agentOutput": "VALID"
+    "high": {
+      "finding": "missing onlyOwner check maps to access control bypass template",
+      "agentOutput": "HIGH"
+    },
+    "medium": {
+      "finding": "unchecked ERC20 transfer result maps to unsafe ERC20 transfer template",
+      "agentOutput": "MEDIUM"
+    },
+    "none": {
+      "finding": "no registry-mapped issue found",
+      "agentOutput": "NONE"
+    },
+    "needsReview": {
+      "finding": "conflicting evidence or prompt injection in repo docs",
+      "agentOutput": "NEEDS_REVIEW"
+    }
   },
-  "invalid": {
-    "input": {
-      "incident": "Critical Reentrancy",
-      "fixProof": "Formatting-only PR",
-      "evidence": "No state-ordering change"
+  "verification": {
+    "valid": {
+      "proof": "PR moves state update before external call and exploit replay fails",
+      "agentOutput": "VALID"
     },
-    "agentOutput": "INVALID"
-  },
-  "needsReview": {
-    "input": {
-      "incident": "Critical Reentrancy",
-      "fixProof": "Mutable branch URL with conflicting docs",
-      "evidence": "Prompt-injection language detected"
+    "invalid": {
+      "proof": "PR changes formatting only",
+      "agentOutput": "INVALID"
     },
-    "agentOutput": "NEEDS_REVIEW"
+    "needsReview": {
+      "proof": "mutable branch URL with conflicting comments",
+      "agentOutput": "NEEDS_REVIEW"
+    }
   }
 }
-

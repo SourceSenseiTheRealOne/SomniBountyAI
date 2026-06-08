@@ -47,3 +47,9 @@ interface ILLMAgent {
         string[] calldata allowedValues
     ) external returns (string memory);
 }
+
+interface IJsonApiAgent {
+    function fetchString(string calldata url, string calldata selector)
+        external
+        returns (string memory);
+}
