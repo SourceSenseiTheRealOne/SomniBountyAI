@@ -36,6 +36,7 @@ Somnia Agents used by this MVP:
 ## Product Flow
 
 ```text
+Connect wallet
 Matrix loader
 Register project
 Configure bounty tiers
@@ -48,9 +49,9 @@ Paid bounty appears in history
 Publisher flow:
 
 1. Connect wallet.
-2. Register a project with name, description, optional social URL, optional image URL, GitHub repo URL, and agent payout wallet.
+2. Register a project with name, description, optional social URL, optional image URL, and GitHub repo URL.
 3. Fund Critical, High, and Medium bounty tiers.
-4. Funding starts the Somnia Agent automation chain.
+4. Funding starts the Somnia Agent automation chain and reserves agent fees from the publisher wallet.
 5. Agents and backend coordinate until a valid fix is paid or the job needs review.
 
 ## Agent Behavior
@@ -68,7 +69,7 @@ Stored fields:
 - GitHub repo URL
 - metadata hash
 - publisher wallet
-- agent payout wallet
+- fixed platform payout collector
 
 Long metadata can be pinned to IPFS through the web API, but core project fields are stored in the smart contract.
 
@@ -83,6 +84,12 @@ Medium minimum:   0.01 STT
 ```
 
 The same transaction also reserves Somnia Agent fees. Once funded, the contract creates the first agent request.
+
+Publisher wallets pay the registration gas, the bounty escrow, and the Somnia Agent fee reserve. Valid payouts are released from escrow to the fixed platform collector wallet:
+
+```text
+0xeE59b12EB683A346b3D8A4CB43d5aFa8AD3303F3
+```
 
 ### 3. Repo Snapshot Agent
 
@@ -155,7 +162,7 @@ INVALID
 NEEDS_REVIEW
 ```
 
-Only `VALID` releases the bounty. The payout goes to the configured agent payout wallet, not to an arbitrary caller.
+Only `VALID` releases the bounty. The payout goes to the fixed platform collector wallet, not to an arbitrary caller or project-provided address.
 
 ## Smart Contracts
 
@@ -193,6 +200,7 @@ Owns the bounty lifecycle:
 - final verifier result
 - payout
 - paid bounty history
+- fixed collector payout routing
 
 Callback invariants:
 
@@ -203,6 +211,7 @@ Callback invariants:
 - payout path uses reentrancy guard
 - repeated callbacks cannot double pay
 - no admin drain path
+- payout recipient is fixed onchain to `0xeE59b12EB683A346b3D8A4CB43d5aFa8AD3303F3`
 
 ## Backend API
 
@@ -299,7 +308,7 @@ SomniBountyAI:         0x5a3a0376f28B9CB1aF5fFD23bBcFCdC71483FC59
 Automation API:        https://p01--somnibountyai--yrnf5wlhj7v8.code.run
 ```
 
-Important: after the first deployment, the local smart contract env was corrected so future deployments use the documented fee split: LLM `0.07 STT` per validator and JSON API `0.03 STT` per validator. If the deployed contract was created before that fix, redeploy before a real full agent run.
+Important: after the first deployment, the local smart contract env was corrected so future deployments use the documented fee split: LLM `0.07 STT` per validator and JSON API `0.03 STT` per validator. The contract source was also updated to enforce the fixed platform payout collector. Redeploy before a real full agent run.
 
 ## Local Setup
 
@@ -421,6 +430,8 @@ Set `NEXT_PUBLIC_*` values as both build arguments and runtime variables. Set se
 - Repo content is untrusted evidence.
 - GitHub comments, READMEs, Solidity comments, and PR bodies can contain prompt injection.
 - Backend never decides payout validity.
+- Publisher wallet funds bounty escrow and agent-fee reserve.
+- Fixed collector wallet receives valid bounty payouts.
 - Backend must not expose arbitrary calldata or arbitrary repo mutation endpoints.
 - GitHub App should use least privilege:
   - Contents: read/write
