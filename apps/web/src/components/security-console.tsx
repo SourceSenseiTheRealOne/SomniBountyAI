@@ -906,15 +906,36 @@ export function SecurityConsole() {
   const [bountyOpen, setBountyOpen] = useState(false);
   const [projectPickerOpen, setProjectPickerOpen] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<bigint | null>(null);
+  const bootedAccount = useRef<string | null>(null);
   const bootTimers = useRef<number[]>([]);
   const wallet = useSomniaWallet();
   const bounty = useSomniBounty(wallet.walletClient, wallet.account);
+  const showingLoader = booting || Boolean(wallet.account && !bounty.hasSynced);
 
   useEffect(() => {
     return () => {
       bootTimers.current.forEach((timer) => window.clearTimeout(timer));
     };
   }, []);
+
+  useEffect(() => {
+    if (!wallet.account) {
+      bootedAccount.current = null;
+      bootTimers.current.forEach((timer) => window.clearTimeout(timer));
+      bootTimers.current = [window.setTimeout(() => setBooting(false), 0)];
+      return;
+    }
+
+    const accountKey = wallet.account.toLowerCase();
+    if (bootedAccount.current === accountKey) return;
+
+    bootTimers.current.forEach((timer) => window.clearTimeout(timer));
+    bootedAccount.current = accountKey;
+    bootTimers.current = [
+      window.setTimeout(() => setBooting(true), 0),
+      window.setTimeout(() => setBooting(false), 4_000),
+    ];
+  }, [wallet.account]);
 
   const selectedProject =
     bounty.projects.find((project) => project.numericProjectId === selectedProjectId) ??
@@ -937,9 +958,7 @@ export function SecurityConsole() {
     try {
       const connected = await wallet.connect();
       if (connected) {
-        bootTimers.current.forEach((timer) => window.clearTimeout(timer));
-        setBooting(true);
-        bootTimers.current = [window.setTimeout(() => setBooting(false), 4_000)];
+        bootedAccount.current = null;
       }
     } finally {
       setConnectPending(false);
@@ -1019,7 +1038,7 @@ export function SecurityConsole() {
 
   return (
     <main className="noise scanlines relative min-h-[100dvh] overflow-hidden bg-[#030706] text-foreground">
-      <AnimatePresence>{booting ? <MatrixLoader /> : null}</AnimatePresence>
+      <AnimatePresence>{showingLoader ? <MatrixLoader /> : null}</AnimatePresence>
       <div className="aurora" aria-hidden="true" />
 
       {!wallet.account ? (
@@ -1032,7 +1051,7 @@ export function SecurityConsole() {
         </AnimatePresence>
       ) : null}
 
-      {wallet.account && !booting && bounty.projects.length === 0 ? (
+      {wallet.account && !showingLoader && bounty.projects.length === 0 ? (
         <RegistrationView
           walletStatus={wallet.status}
           connectedAccount={wallet.account}
@@ -1043,7 +1062,7 @@ export function SecurityConsole() {
         />
       ) : null}
 
-      {wallet.account && !booting && bounty.projects.length > 0 ? (
+      {wallet.account && !showingLoader && bounty.projects.length > 0 ? (
         <div className="relative z-10 mx-auto max-w-[88rem] px-4 py-5 sm:px-6 lg:px-8">
           <ShellNav
             activeView={activeView}

@@ -8,10 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "diagnose:live": "node scripts/diagnose-live-flow.mjs",
-    "flow:live": "node scripts/run-live-user-flow.mjs",
-    "smoke:raw-agent": "node scripts/smoke-raw-agent.mjs",
-    "smoke:json-agent": "node scripts/deploy-agent-json-smoke.mjs",
-    "smoke:agent": "node scripts/smoke-snapshot-agent.mjs"
+    "flow:live": "node scripts/run-live-user-flow.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",

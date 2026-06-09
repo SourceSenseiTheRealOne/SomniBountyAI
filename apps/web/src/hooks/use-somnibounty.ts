@@ -309,6 +309,7 @@ export function useSomniBounty(walletClient: WalletClient | null, account: Addre
   const [incidents, setIncidents] = useState<UiIncident[]>([]);
   const [agentLogs, setAgentLogs] = useState<UiAgentLog[]>([]);
   const [paidBounties, setPaidBounties] = useState<UiPaidBounty[]>([]);
+  const [hasSynced, setHasSynced] = useState(false);
   const [status, setStatus] = useState(
     contractAddress
       ? "Ready to sync live Somnia testnet data"
@@ -336,7 +337,10 @@ export function useSomniBounty(walletClient: WalletClient | null, account: Addre
   }, []);
 
   const refresh = useCallback(async () => {
-    if (!contractAddress) return;
+    if (!contractAddress) {
+      setHasSynced(true);
+      return;
+    }
 
     try {
       const [[projectCount, incidentCount, fixCount], scanCount] = await Promise.all([
@@ -519,15 +523,19 @@ export function useSomniBounty(walletClient: WalletClient | null, account: Addre
       setStatus(
         `Synced ${nextProjects.length} project(s), ${nextScanJobs.length} scan job(s), ${nextIncidents.length} incident(s)`,
       );
+      setHasSynced(true);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Unable to sync contract");
+      setHasSynced(true);
     }
   }, [contractAddress, publicClient]);
 
   useEffect(() => {
+    const reset = window.setTimeout(() => setHasSynced(false), 0);
     const initial = window.setTimeout(() => void refresh(), 0);
     const id = window.setInterval(() => void refresh(), 8_000);
     return () => {
+      window.clearTimeout(reset);
       window.clearTimeout(initial);
       window.clearInterval(id);
     };
@@ -613,6 +621,7 @@ export function useSomniBounty(walletClient: WalletClient | null, account: Addre
     agentLogs,
     contractAddress,
     explorerBase: somniaExplorerUrl,
+    hasSynced,
     incidents,
     lastTx,
     paidBounties,
