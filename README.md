@@ -2,7 +2,7 @@
 
 Autonomous security bounty automation for the Somnia Agentathon.
 
-![SomniBounty AI logo banner](docs/assets/somnibounty-readme-banner.svg)
+![SomniBounty AI logo banner](apps/web/public/somnibounty-readme-banner.svg)
 
 ## Mission
 
@@ -415,25 +415,6 @@ Set `NEXT_PUBLIC_*` values as both build arguments and runtime variables. Set se
 |-- docker-compose.yml       Local Docker Compose config
 `-- README.md
 ```
-
-## Verification Status
-
-Current checks:
-
-- Foundry tests: `17 passed`
-- contract format check: passed
-- web lint: passed
-- web production build: passed
-- Docker Compose syntax: passed
-- public health endpoint: passed
-- Pinata backend route: passed
-- GitHub App token test: passed
-
-Known current blocker:
-
-- OpenAI/Codex API key returned quota error during backend smoke test. PR generation will not work until OpenAI quota or key is fixed.
-- Full Docker image run was not verified locally because Docker daemon was not running.
-- This is a hackathon MVP. It needs more testing, security review, better failure recovery, and production hardening before real value is put at risk.
 
 ## Security Notes
 
