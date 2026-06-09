@@ -1,4 +1,4 @@
-# SomniBounty AI
+﻿# SomniBounty AI
 
 Autonomous security bounty automation for the Somnia Agentathon.
 
@@ -303,12 +303,25 @@ Agent platform: 0x037Bb9C718F3f7fe5eCBDB0b600D607b52706776
 Current deployed contracts:
 
 ```text
-VulnerabilityRegistry: 0x360A084BA109D10DF2a0538B602A8a5842db568b
-SomniBountyAI:         0x5a3a0376f28B9CB1aF5fFD23bBcFCdC71483FC59
+VulnerabilityRegistry: 0x7486949c6f8c6878EF03fc0E911f0Ed679Cc0CaD
+SomniBountyAI:         0xf920336C3e1A681dBbFBF690D334C60313ab9889
 Automation API:        https://p01--somnibountyai--yrnf5wlhj7v8.code.run
 ```
 
-Important: after the first deployment, the local smart contract env was corrected so future deployments use the documented fee split: LLM `0.07 STT` per validator and JSON API `0.03 STT` per validator. The contract source was also updated to enforce the fixed platform payout collector. Redeploy before a real full agent run.
+Deployment notes:
+
+- `VulnerabilityRegistry` was deployed directly, then seeded with 12 owner-only template transactions to avoid a large constructor gas wall on Somnia testnet.
+- `SomniBountyAI` was deployed directly against that seeded registry.
+- This deployment uses the documented fee split: LLM `0.07 STT` per validator and JSON API `0.03 STT` per validator.
+- This deployment enforces the fixed platform payout collector onchain.
+
+Deployment transactions:
+
+```text
+Registry deploy: 0x01abad703bd92c92f123a2a97f64ace6a726fd269e6d159cf7fbc45bff15191a
+First seed tx:   0xd32d87c03c0e44b92352fe668573a173928c395e96d762bb1e0607464afb1737
+Escrow deploy:   0xe298b464881a6497c92051a3332d930467eeca73f9f5e09fc82fb319ecca610d
+```
 
 ## Local Setup
 

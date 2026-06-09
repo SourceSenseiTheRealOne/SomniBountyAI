@@ -13,8 +13,7 @@ import {
 import { VulnerabilityRegistry } from "./VulnerabilityRegistry.sol";
 
 contract SomniBountyAI is IAgentRequesterHandler {
-    address public constant PLATFORM_PAYOUT_WALLET =
-        0xeE59b12EB683A346b3D8A4CB43d5aFa8AD3303F3;
+    address public constant PLATFORM_PAYOUT_WALLET = 0xeE59b12EB683A346b3D8A4CB43d5aFa8AD3303F3;
 
     enum IncidentStatus {
         Open,
