@@ -19,7 +19,7 @@ type ProjectIpfsResponse = {
   metadataJson: string;
 };
 
-const twitterUrl = "https://twitter.com/";
+const twitterUrl = "https://x.com/BlaviXyz";
 const platformPayoutWallet = "0xeE59b12EB683A346b3D8A4CB43d5aFa8AD3303F3" as Address;
 const navItemBase =
   "inline-flex h-11 min-w-32 items-center justify-center rounded-full px-4 text-sm transition";
@@ -262,7 +262,7 @@ function ShellNav({
           rel="noreferrer"
           className={`${navItemBase} border border-cyan-200/20 bg-cyan-300/10 text-cyan-50`}
         >
-          Follow us on Twitter
+          Follow us on X
         </a>
         <button
           type="button"
