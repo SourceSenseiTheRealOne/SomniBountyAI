@@ -138,7 +138,8 @@ contract SomniBountyAITest {
         require(job.projectId == projectId, "project mismatch");
         require(uint8(job.status) == uint8(SomniBountyAI.ScanStatus.Pending), "not pending");
         require(critical == CRITICAL && high == HIGH && medium == MEDIUM, "tiers mismatch");
-        require(escrow.pendingScanRequests(requestId) == scanJobId, "pending mismatch");
+        (, uint256 pendingScanJobId,,,) = escrow.pendingAgentRequests(requestId);
+        require(pendingScanJobId == scanJobId, "pending mismatch");
         require(platform.requestFees(requestId) == expectedFee, "fee mismatch");
     }
 

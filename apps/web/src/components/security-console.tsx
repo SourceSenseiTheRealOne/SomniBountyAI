@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AnimatePresence, motion } from "motion/react";
 import { useForm } from "react-hook-form";
@@ -20,6 +20,8 @@ type ProjectIpfsResponse = {
 };
 
 const twitterUrl = "https://twitter.com/";
+const navItemBase =
+  "inline-flex h-11 min-w-32 items-center justify-center rounded-full px-4 text-sm transition";
 const addressSchema = z
   .string()
   .trim()
@@ -53,6 +55,40 @@ type DashboardView = "overview" | "logs";
 function FieldError({ message }: { message?: string }) {
   if (!message) return null;
   return <p className="mt-2 text-xs text-rose-200">{message}</p>;
+}
+
+function toUserErrorMessage(error: unknown, fallback: string) {
+  const message =
+    error instanceof Error ? error.message : typeof error === "string" ? error : "";
+  const lower = message.toLowerCase();
+
+  if (
+    lower.includes("user rejected") ||
+    lower.includes("user cancel") ||
+    lower.includes("rejected the request") ||
+    lower.includes("request rejected") ||
+    lower.includes("denied transaction")
+  ) {
+    return "Transaction cancelled in your wallet. Nothing was submitted.";
+  }
+
+  if (lower.includes("insufficient funds") || lower.includes("insufficient balance")) {
+    return "Not enough STT for this transaction. Add testnet STT for gas, agent fees, and bounty funding.";
+  }
+
+  if (lower.includes("chain") || lower.includes("network")) {
+    return "Wallet network mismatch. Switch to Somnia Testnet and try again.";
+  }
+
+  if (lower.includes("pinata") || lower.includes("metadata pin")) {
+    return "Project metadata could not be pinned to IPFS. Check the backend IPFS configuration and try again.";
+  }
+
+  if (lower.includes("execution reverted")) {
+    return "The contract rejected this transaction. Check the project state and bounty minimums, then try again.";
+  }
+
+  return fallback;
 }
 
 function MatrixLoader() {
@@ -93,10 +129,10 @@ function MatrixLoader() {
           {column.text}
         </motion.div>
       ))}
-      <div className="relative z-10 grid min-h-[100dvh] place-items-center px-6">
-        <div className="text-center">
+      <div className="relative z-10 flex min-h-[100dvh] items-center justify-center px-6 text-center">
+        <div className="mx-auto flex w-full max-w-xl flex-col items-center">
           <motion.div
-            className="mx-auto grid h-24 w-24 place-items-center rounded-full border border-emerald-200/20 bg-emerald-300/10 shadow-[0_0_80px_rgba(52,211,153,0.2)]"
+            className="grid h-24 w-24 shrink-0 place-items-center rounded-full border border-emerald-200/20 bg-emerald-300/10 shadow-[0_0_80px_rgba(52,211,153,0.2)]"
             animate={{ scale: [1, 1.06, 1], rotate: [0, 2, -2, 0] }}
             transition={{ duration: 1.8, repeat: Infinity, ease: [0.32, 0.72, 0, 1] }}
           >
@@ -108,7 +144,7 @@ function MatrixLoader() {
           <p className="mt-4 font-mono text-xs uppercase tracking-[0.32em] text-emerald-100/70">
             Somnia agents initializing
           </p>
-          <div className="mt-8 h-1.5 w-[min(28rem,80vw)] overflow-hidden rounded-full border border-emerald-200/15 bg-white/5">
+          <div className="mt-8 h-1.5 w-full max-w-md overflow-hidden rounded-full border border-emerald-200/15 bg-white/5">
             <motion.div
               className="h-full rounded-full bg-emerald-300 shadow-[0_0_24px_rgba(52,211,153,0.55)]"
               initial={{ width: "0%" }}
@@ -145,13 +181,59 @@ function Button({
   );
 }
 
+function ConnectWalletView({
+  status,
+  pending,
+  onConnect,
+}: {
+  status: string;
+  pending: boolean;
+  onConnect: () => void;
+}) {
+  return (
+    <section className="relative z-10 grid min-h-[100dvh] place-items-center px-4 py-10">
+      <motion.div
+        className="mx-auto w-full max-w-xl text-center"
+        initial={{ y: 18, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: -12, opacity: 0 }}
+      >
+        <div className="mx-auto grid h-20 w-20 place-items-center rounded-full border border-emerald-200/20 bg-emerald-300/10 shadow-[0_0_70px_rgba(52,211,153,0.18)]">
+          <span className="font-mono text-2xl font-semibold text-emerald-100">SB</span>
+        </div>
+        <p className="mt-7 font-mono text-xs uppercase tracking-[0.28em] text-emerald-200/70">
+          SomniBounty AI
+        </p>
+        <h1 className="mt-3 font-display text-4xl font-semibold text-white sm:text-6xl">
+          Connect wallet
+        </h1>
+        <p className="mx-auto mt-4 max-w-md text-sm leading-6 text-white/55">
+          Connect on Somnia Testnet to load your projects, bounties, agent logs, and paid history.
+        </p>
+        <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-emerald-100/62">
+          SomniBounty AI lets teams publish smart contract repos, fund security bounty tiers, and
+          route discovery, review, PR creation, and payout through Somnia agent automation.
+        </p>
+        <div className="mt-8 flex justify-center">
+          <Button onClick={onConnect} disabled={pending}>
+            {pending ? "Connecting..." : "Connect Wallet"}
+          </Button>
+        </div>
+        <p className="mt-5 font-mono text-xs text-white/45">{status}</p>
+      </motion.div>
+    </section>
+  );
+}
+
 function ShellNav({
   activeView,
   setActiveView,
+  onRegister,
   onBounty,
 }: {
   activeView: DashboardView;
   setActiveView: (view: DashboardView) => void;
+  onRegister: () => void;
   onBounty: () => void;
 }) {
   return (
@@ -164,7 +246,7 @@ function ShellNav({
           <button
             key={view}
             onClick={() => setActiveView(view)}
-            className={`rounded-full px-4 py-2 text-sm transition ${
+            className={`${navItemBase} ${
               activeView === view
                 ? "bg-white text-black"
                 : "border border-white/10 bg-white/[0.04] text-white/72 hover:bg-white/[0.08]"
@@ -175,7 +257,7 @@ function ShellNav({
         ))}
         <Link
           href="/bounties/paid"
-          className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-white/72 transition hover:bg-white/[0.08]"
+          className={`${navItemBase} border border-white/10 bg-white/[0.04] text-white/72 hover:bg-white/[0.08]`}
         >
           Paid History
         </Link>
@@ -183,23 +265,63 @@ function ShellNav({
           href={twitterUrl}
           target="_blank"
           rel="noreferrer"
-          className="rounded-full border border-cyan-200/20 bg-cyan-300/10 px-4 py-2 text-sm text-cyan-50"
+          className={`${navItemBase} border border-cyan-200/20 bg-cyan-300/10 text-cyan-50`}
         >
           Follow us on Twitter
         </a>
-        <Button onClick={onBounty}>Set Up Bounty</Button>
+        <button
+          type="button"
+          onClick={onRegister}
+          className={`${navItemBase} border border-emerald-200/20 bg-white/[0.04] text-emerald-50 hover:bg-white/[0.08]`}
+        >
+          Register Project
+        </button>
+        <button
+          type="button"
+          onClick={onBounty}
+          className={`${navItemBase} border border-emerald-200/20 bg-emerald-300/12 font-medium text-emerald-50 hover:border-emerald-200/45 hover:bg-emerald-300/18`}
+        >
+          Set Up Bounty
+        </button>
       </div>
     </nav>
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-[1.2rem] border border-white/8 bg-white/[0.035] p-4">
+function Stat({
+  label,
+  value,
+  onClick,
+}: {
+  label: string;
+  value: string;
+  onClick?: () => void;
+}) {
+  const className = `rounded-[1.2rem] border border-white/8 bg-white/[0.035] p-4 ${
+    onClick
+      ? "text-left transition hover:border-emerald-200/24 hover:bg-emerald-300/8 focus:outline-none focus:ring-2 focus:ring-emerald-200/30"
+      : ""
+  }`;
+  const content = (
+    <>
       <p className="font-mono text-[0.68rem] uppercase tracking-[0.18em] text-white/45">
         {label}
       </p>
       <p className="mt-3 font-display text-3xl font-semibold text-emerald-100">{value}</p>
+    </>
+  );
+
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className={className} aria-label={`Open ${label}`}>
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <div className={className}>
+      {content}
     </div>
   );
 }
@@ -211,6 +333,8 @@ function RegistrationView({
   onSubmit,
   pending,
   error,
+  variant = "page",
+  onClose,
 }: {
   walletStatus: string;
   connectedAccount: Address | null;
@@ -218,6 +342,8 @@ function RegistrationView({
   onSubmit: (values: RegistrationValues) => Promise<void>;
   pending: boolean;
   error: string;
+  variant?: "page" | "modal";
+  onClose?: () => void;
 }) {
   const form = useForm<RegistrationInput, unknown, RegistrationValues>({
     resolver: zodResolver(registrationSchema),
@@ -237,9 +363,8 @@ function RegistrationView({
     }
   }, [connectedAccount, form]);
 
-  return (
-    <section className="grid min-h-[calc(100dvh-2.5rem)] place-items-center px-4 py-10">
-      <div className="w-full max-w-5xl">
+  const content = (
+    <div className="mx-auto w-full max-w-5xl">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="font-mono text-xs uppercase tracking-[0.24em] text-emerald-200/70">
@@ -249,7 +374,18 @@ function RegistrationView({
               Publish a bounty target
             </h1>
           </div>
-          <Button onClick={connect}>{connectedAccount ? walletStatus : "Connect Wallet"}</Button>
+          <div className="flex items-center gap-2">
+            <Button onClick={connect}>{connectedAccount ? walletStatus : "Connect Wallet"}</Button>
+            {variant === "modal" ? (
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-white/72 transition hover:bg-white/[0.08]"
+              >
+                Return to Dashboard
+              </button>
+            ) : null}
+          </div>
         </div>
 
         <form
@@ -318,24 +454,100 @@ function RegistrationView({
           {error ? <p className="mt-4 text-sm text-rose-200">{error}</p> : null}
         </form>
       </div>
+  );
+
+  if (variant === "modal") {
+    return (
+      <motion.div
+        className="fixed inset-0 z-40 grid place-items-center overflow-y-auto bg-black/70 px-4 py-8 backdrop-blur-xl"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+      >
+        <motion.div
+          className="flex w-full justify-center"
+          initial={{ y: 24, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: 20, opacity: 0 }}
+        >
+          {content}
+        </motion.div>
+      </motion.div>
+    );
+  }
+
+  return (
+    <section className="grid min-h-[calc(100dvh-2.5rem)] place-items-center px-4 py-10">
+      {content}
     </section>
   );
 }
 
 function Overview({
-  projects,
+  walletProjectCount,
   selectedProject,
   scanJobs,
   incidents,
-  paidCount,
+  agentLogs,
+  paidBounties,
+  onProjectsClick,
 }: {
-  projects: UiProject[];
+  walletProjectCount: number;
   selectedProject?: UiProject;
   scanJobs: ReturnType<typeof useSomniBounty>["scanJobs"];
   incidents: ReturnType<typeof useSomniBounty>["incidents"];
-  paidCount: number;
+  agentLogs: ReturnType<typeof useSomniBounty>["agentLogs"];
+  paidBounties: ReturnType<typeof useSomniBounty>["paidBounties"];
+  onProjectsClick: () => void;
 }) {
   const tierValues = selectedProject?.tiers ?? { critical: 0n, high: 0n, medium: 0n };
+  const selectedProjectId = selectedProject?.numericProjectId;
+  const selectedJobs = selectedProjectId
+    ? scanJobs.filter((job) => job.projectId === selectedProjectId)
+    : scanJobs;
+  const selectedLogs = selectedProjectId
+    ? agentLogs.filter((log) => log.projectId === selectedProjectId)
+    : agentLogs;
+  const selectedPaidCount = selectedProjectId
+    ? paidBounties.filter((bounty) => bounty.projectId === selectedProjectId).length
+    : paidBounties.length;
+  const hasFundedTiers = tierValues.critical + tierValues.high + tierValues.medium > 0n;
+  const hasStep = (needle: string) =>
+    selectedLogs.some((log) => log.step.toLowerCase().includes(needle));
+  const hasAnyLog = (...needles: string[]) => needles.some((needle) => hasStep(needle));
+  const flowSteps = [
+    { label: "Register Project", complete: Boolean(selectedProject), active: !selectedProject },
+    {
+      label: "Set Bounty Tiers",
+      complete: hasFundedTiers || selectedJobs.length > 0,
+      active: Boolean(selectedProject) && !hasFundedTiers && selectedJobs.length === 0,
+    },
+    {
+      label: "Somnia Scan",
+      complete: hasAnyLog("vulnerability candidate", "scan completed", "scan needs review"),
+      active: selectedJobs.some((job) => job.status === "Pending"),
+    },
+    {
+      label: "Second Agent Review",
+      complete: hasAnyLog("candidate validated", "second review result"),
+      active: hasAnyLog("second agent review started"),
+    },
+    {
+      label: "Backend PR",
+      complete: hasAnyLog("pr created"),
+      active: hasAnyLog("pr requested"),
+    },
+    {
+      label: "Verifier Callback",
+      complete: hasAnyLog("somnia verifier result"),
+      active: hasAnyLog("final verifier requested"),
+    },
+    {
+      label: "Bounty Paid",
+      complete: selectedPaidCount > 0,
+      active: hasAnyLog("somnia verifier result") && selectedPaidCount === 0,
+    },
+  ];
   const maxTier = Number(
     [tierValues.critical, tierValues.high, tierValues.medium].reduce(
       (max, value) => (value > max ? value : max),
@@ -352,10 +564,10 @@ function Overview({
     <section className="mt-6 grid gap-5 xl:grid-cols-[1fr_22rem]">
       <div className="grid gap-5">
         <div className="grid gap-4 md:grid-cols-4">
-          <Stat label="Projects" value={projects.length.toString()} />
+          <Stat label="Projects" value={walletProjectCount.toString()} onClick={onProjectsClick} />
           <Stat label="Scan jobs" value={scanJobs.length.toString()} />
           <Stat label="Open incidents" value={incidents.length.toString()} />
-          <Stat label="Paid bounties" value={paidCount.toString()} />
+          <Stat label="Paid bounties" value={paidBounties.length.toString()} />
         </div>
 
         <div className="rounded-[1.5rem] border border-white/10 bg-black/28 p-5">
@@ -434,20 +646,40 @@ function Overview({
       <aside className="rounded-[1.5rem] border border-white/10 bg-black/28 p-5">
         <p className="font-mono text-xs uppercase tracking-[0.22em] text-white/45">flow</p>
         <div className="mt-5 grid gap-3">
-          {[
-            "Register Project",
-            "Set Bounty Tiers",
-            "Somnia Scan",
-            "Second Agent Review",
-            "Backend PR",
-            "Verifier Callback",
-            "Bounty Paid",
-          ].map((step, index) => (
-            <div key={step} className="flex items-center gap-3">
-              <span className="grid h-7 w-7 place-items-center rounded-full border border-emerald-200/20 bg-emerald-300/10 font-mono text-xs text-emerald-100">
+          {flowSteps.map((step, index) => (
+            <div
+              key={step.label}
+              className={`flex items-center gap-3 rounded-xl border px-3 py-2 transition ${
+                step.complete
+                  ? "border-emerald-200/20 bg-emerald-300/10"
+                  : step.active
+                    ? "border-cyan-200/25 bg-cyan-300/10 shadow-[0_0_28px_rgba(34,211,238,0.08)]"
+                    : "border-white/8 bg-white/[0.025]"
+              }`}
+            >
+              <span
+                className={`grid h-7 w-7 shrink-0 place-items-center rounded-full border font-mono text-xs ${
+                  step.complete
+                    ? "border-emerald-200/30 bg-emerald-300/16 text-emerald-100"
+                    : step.active
+                      ? "border-cyan-200/35 bg-cyan-300/16 text-cyan-100"
+                      : "border-white/10 bg-white/[0.035] text-white/38"
+                }`}
+              >
                 {index + 1}
               </span>
-              <span className="text-sm text-white/70">{step}</span>
+              <span
+                className={`min-w-0 text-sm ${
+                  step.complete ? "text-emerald-50" : step.active ? "text-cyan-50" : "text-white/48"
+                }`}
+              >
+                {step.label}
+              </span>
+              <span
+                className={`ml-auto h-2 w-2 shrink-0 rounded-full ${
+                  step.complete ? "bg-emerald-300" : step.active ? "bg-cyan-300" : "bg-white/16"
+                }`}
+              />
             </div>
           ))}
         </div>
@@ -496,6 +728,89 @@ function LogsView({ logs }: { logs: ReturnType<typeof useSomniBounty>["agentLogs
         )}
       </div>
     </section>
+  );
+}
+
+function ProjectPickerModal({
+  projects,
+  walletAccount,
+  close,
+  onSelect,
+}: {
+  projects: UiProject[];
+  walletAccount: Address | null;
+  close: () => void;
+  onSelect: (projectId: bigint) => void;
+}) {
+  return (
+    <motion.div
+      className="fixed inset-0 z-40 grid place-items-center bg-black/70 px-4 backdrop-blur-xl"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
+      <motion.div
+        className="w-full max-w-3xl rounded-[1.5rem] border border-white/10 bg-[#07110f] p-5 shadow-[0_28px_90px_rgba(0,0,0,0.4)]"
+        initial={{ y: 24, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: 20, opacity: 0 }}
+      >
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="font-mono text-xs uppercase tracking-[0.22em] text-emerald-100/70">
+              wallet projects
+            </p>
+            <h2 className="mt-3 font-display text-2xl font-semibold text-white">
+              Select Project
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={close}
+            className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-white/72 transition hover:bg-white/[0.08]"
+          >
+            Return to Dashboard
+          </button>
+        </div>
+
+        <div className="mt-5 grid gap-3">
+          {walletAccount ? (
+            projects.length > 0 ? (
+              projects.map((project) => (
+                <button
+                  key={project.id}
+                  type="button"
+                  onClick={() => onSelect(project.numericProjectId)}
+                  className="grid gap-3 rounded-xl border border-white/8 bg-white/[0.035] p-4 text-left transition hover:border-emerald-200/24 hover:bg-emerald-300/8 md:grid-cols-[7rem_1fr_auto]"
+                >
+                  <p className="font-mono text-xs text-emerald-100">{project.id}</p>
+                  <div className="min-w-0">
+                    <p className="font-display text-lg font-semibold text-white">{project.name}</p>
+                    <p className="mt-1 line-clamp-2 text-sm leading-6 text-white/52">
+                      {project.description}
+                    </p>
+                    <p className="mt-2 truncate font-mono text-xs text-cyan-100/70">
+                      {project.githubRepo}
+                    </p>
+                  </div>
+                  <span className="self-center rounded-full border border-emerald-200/20 bg-emerald-300/10 px-3 py-1 font-mono text-xs text-emerald-100">
+                    Open
+                  </span>
+                </button>
+              ))
+            ) : (
+              <p className="rounded-xl border border-white/8 bg-white/[0.035] p-5 text-sm text-white/52">
+                No projects registered by connected wallet.
+              </p>
+            )
+          ) : (
+            <p className="rounded-xl border border-white/8 bg-white/[0.035] p-5 text-sm text-white/52">
+              Connect wallet to see projects created by your address.
+            </p>
+          )}
+        </div>
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -588,23 +903,54 @@ function BountyModal({
 }
 
 export function SecurityConsole() {
-  const [booting, setBooting] = useState(true);
+  const [booting, setBooting] = useState(false);
+  const [connectPending, setConnectPending] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   const [activeView, setActiveView] = useState<DashboardView>("overview");
+  const [registerOpen, setRegisterOpen] = useState(false);
   const [bountyOpen, setBountyOpen] = useState(false);
+  const [projectPickerOpen, setProjectPickerOpen] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<bigint | null>(null);
+  const bootTimers = useRef<number[]>([]);
   const wallet = useSomniaWallet();
   const bounty = useSomniBounty(wallet.walletClient, wallet.account);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setBooting(false), 4_000);
-    return () => window.clearTimeout(timer);
+    return () => {
+      bootTimers.current.forEach((timer) => window.clearTimeout(timer));
+    };
   }, []);
 
   const selectedProject =
     bounty.projects.find((project) => project.numericProjectId === selectedProjectId) ??
     bounty.projects[0];
+  const walletProjects = useMemo(() => {
+    if (!wallet.account) return [];
+    const connected = wallet.account.toLowerCase();
+    return bounty.projects.filter((project) => project.ownerAddress.toLowerCase() === connected);
+  }, [bounty.projects, wallet.account]);
+
+  function selectProject(projectId: bigint) {
+    setSelectedProjectId(projectId);
+    setActiveView("overview");
+    setProjectPickerOpen(false);
+  }
+
+  async function connectWallet() {
+    setError("");
+    setConnectPending(true);
+    try {
+      const connected = await wallet.connect();
+      if (connected) {
+        bootTimers.current.forEach((timer) => window.clearTimeout(timer));
+        setBooting(true);
+        bootTimers.current = [window.setTimeout(() => setBooting(false), 4_000)];
+      }
+    } finally {
+      setConnectPending(false);
+    }
+  }
 
   async function registerProject(values: RegistrationValues) {
     setError("");
@@ -638,8 +984,15 @@ export function SecurityConsole() {
         hashText(data.metadataJson || data.ipfsUri),
         values.agentPayoutWallet as Address,
       );
+      setRegisterOpen(false);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Unable to register project");
+      console.error("[SomniBounty] register project failed", caught);
+      setError(
+        toUserErrorMessage(
+          caught,
+          "Unable to register project. Check your wallet, network, and project details, then try again.",
+        ),
+      );
     } finally {
       setPending(false);
     }
@@ -658,7 +1011,13 @@ export function SecurityConsole() {
       );
       setBountyOpen(false);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Unable to set bounty");
+      console.error("[SomniBounty] setup bounty failed", caught);
+      setError(
+        toUserErrorMessage(
+          caught,
+          "Unable to set bounty. Check your wallet, STT balance, and bounty minimums, then try again.",
+        ),
+      );
     } finally {
       setPending(false);
     }
@@ -669,7 +1028,17 @@ export function SecurityConsole() {
       <AnimatePresence>{booting ? <MatrixLoader /> : null}</AnimatePresence>
       <div className="aurora" aria-hidden="true" />
 
-      {!booting && bounty.projects.length === 0 ? (
+      {!wallet.account ? (
+        <AnimatePresence>
+          <ConnectWalletView
+            status={wallet.status}
+            pending={connectPending}
+            onConnect={connectWallet}
+          />
+        </AnimatePresence>
+      ) : null}
+
+      {wallet.account && !booting && bounty.projects.length === 0 ? (
         <RegistrationView
           walletStatus={wallet.status}
           connectedAccount={wallet.account}
@@ -680,12 +1049,23 @@ export function SecurityConsole() {
         />
       ) : null}
 
-      {!booting && bounty.projects.length > 0 ? (
+      {wallet.account && !booting && bounty.projects.length > 0 ? (
         <div className="relative z-10 mx-auto max-w-[88rem] px-4 py-5 sm:px-6 lg:px-8">
           <ShellNav
             activeView={activeView}
             setActiveView={setActiveView}
-            onBounty={() => setBountyOpen(true)}
+            onRegister={() => {
+              setError("");
+              setBountyOpen(false);
+              setProjectPickerOpen(false);
+              setRegisterOpen(true);
+            }}
+            onBounty={() => {
+              setError("");
+              setRegisterOpen(false);
+              setProjectPickerOpen(false);
+              setBountyOpen(true);
+            }}
           />
 
           <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
@@ -709,11 +1089,18 @@ export function SecurityConsole() {
 
           {activeView === "overview" ? (
             <Overview
-              projects={bounty.projects}
+              walletProjectCount={wallet.account ? walletProjects.length : 0}
               selectedProject={selectedProject}
               scanJobs={bounty.scanJobs}
               incidents={bounty.incidents}
-              paidCount={bounty.paidBounties.length}
+              agentLogs={bounty.agentLogs}
+              paidBounties={bounty.paidBounties}
+              onProjectsClick={() => {
+                setError("");
+                setRegisterOpen(false);
+                setBountyOpen(false);
+                setProjectPickerOpen(true);
+              }}
             />
           ) : (
             <LogsView logs={bounty.agentLogs} />
@@ -722,10 +1109,36 @@ export function SecurityConsole() {
       ) : null}
 
       <AnimatePresence>
+        {registerOpen ? (
+          <RegistrationView
+            variant="modal"
+            walletStatus={wallet.status}
+            connectedAccount={wallet.account}
+            connect={wallet.connect}
+            onSubmit={registerProject}
+            pending={pending}
+            error={error}
+            onClose={() => {
+              setError("");
+              setRegisterOpen(false);
+            }}
+          />
+        ) : null}
+        {projectPickerOpen ? (
+          <ProjectPickerModal
+            projects={walletProjects}
+            walletAccount={wallet.account}
+            close={() => setProjectPickerOpen(false)}
+            onSelect={selectProject}
+          />
+        ) : null}
         {bountyOpen ? (
           <BountyModal
             project={selectedProject}
-            close={() => setBountyOpen(false)}
+            close={() => {
+              setError("");
+              setBountyOpen(false);
+            }}
             onSubmit={setupBounty}
             pending={pending}
             error={error}

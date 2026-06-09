@@ -1,228 +1,455 @@
 # SomniBounty AI
 
-Somnia-agent-first security bounty automation.
-
-```text
-Matrix loader -> Register Project -> Configure Bounty Tiers -> Dashboard -> Agent Logs -> Paid History
-```
+Autonomous security bounty automation for the Somnia Agentathon.
 
 ![SomniBounty AI logo banner](docs/assets/somnibounty-readme-banner.svg)
 
-## What It Does
+## Mission
 
-SomniBounty AI lets a company wallet publish a project, fund severity-based bounty tiers, and start an autonomous Somnia Agent security loop.
+SomniBounty AI exists to bring faster, more transparent security workflows to Web3.
 
-The intended production loop:
+Smart contract security is still too manual: teams publish code, researchers search for bugs, maintainers debate impact, fixes move through GitHub, and payouts happen somewhere else. SomniBounty AI turns that flow into one agent-driven loop where evidence, review state, and payout rules live onchain.
 
-```text
-Publisher registers project onchain
-Publisher funds Critical, High, and Medium bounty tiers
-Somnia Agents scan the GitHub repo
-Somnia Agents compare findings against VulnerabilityRegistry
-Second Somnia Agent validates the candidate
-Backend creates an idempotent GitHub App PR when asked by the agent
-Proof is pinned to IPFS
-Somnia verifier returns VALID, INVALID, or NEEDS_REVIEW
-Contract releases STT only on VALID
-Paid bounty appears in /bounties/paid
-```
-
-Backend services support the agents, but they are not payout authority.
-
-## Repository Layout
+The mission is simple:
 
 ```text
-.
-|-- apps/web                 Next.js app
-|-- docs                     Product, architecture, testing, security notes
-|-- scripts/agent            Agent prompt and helper notes
-|-- smart_contract           Foundry project
-|   |-- src/SomniBountyAI.sol
-|   |-- src/VulnerabilityRegistry.sol
-|   |-- test
-|   `-- script
-|-- AGENTS.md
-|-- CLAUDE.md
-|-- TASKS.md
-`-- memory.md
+Bring security to Web3 by letting autonomous agents detect, verify, fix, and pay for real vulnerabilities.
 ```
 
-## Current Contracts
+This repository is an MVP built for the Somnia hackathon. It is not a production audit system, not a replacement for human security review, and not a complete bounty platform yet.
 
-`VulnerabilityRegistry`
+## What Somnia Adds
 
-- Stores known Solidity/EVM vulnerability templates.
-- Initial templates include reentrancy, access control bypass, unchecked external call, signature replay, oracle manipulation, slippage manipulation, unsafe ERC20 transfer, proxy storage collision, `tx.origin` auth, denial of service, rounding loss, and upgradeability/admin risk.
+Somnia is an EVM-compatible L1 with Somnia Agents: validator-executed compute jobs that can fetch public data, parse websites, and run deterministic LLM inference before returning results to smart contracts through asynchronous callbacks.
 
-`SomniBountyAI`
+For this project, Somnia matters because security decisions should not depend on one centralized backend. The backend can help with GitHub and IPFS, but it must not be the final payout authority. Somnia Agents let the contract ask for external data and AI reasoning, then receive consensus-validated results back onchain.
 
-- Registers project name, description, optional social URL, optional image URL, GitHub repo URL, metadata hash, publisher, and agent payout wallet.
-- Funds three bounty tiers in one transaction:
-  - Critical minimum: `0.05 STT`
-  - High minimum: `0.02 STT`
-  - Medium minimum: `0.01 STT`
-- Funding creates a Somnia Agent scan request.
-- Valid scan results open onchain incidents with reserved tier bounty.
-- Fix submission pays the configured agent payout wallet, not arbitrary `msg.sender`.
-- Callback security checks `msg.sender == agentPlatform`, validates request IDs, deletes pending requests before payout, handles failed/timed-out status, and blocks double payout.
+Somnia Agents used by this MVP:
+
+- **JSON API Request Agent**
+  Fetches public HTTP endpoints. SomniBounty uses it to request repo snapshots and PR creation results from the backend.
+- **LLM Inference Agent**
+  Runs deterministic model inference. SomniBounty uses it to classify vulnerabilities, review candidate findings, and verify PR proof.
+- **LLM Parse Website Agent**
+  Supported by Somnia and useful as a future fallback for GitHub pages, READMEs, docs, and security policies. It is not required in the current MVP flow.
+
+## Product Flow
+
+```text
+Matrix loader
+Register project
+Configure bounty tiers
+Somnia Agents scan and review
+Backend opens GitHub PR
+Somnia verifier gates payout
+Paid bounty appears in history
+```
+
+Publisher flow:
+
+1. Connect wallet.
+2. Register a project with name, description, optional social URL, optional image URL, GitHub repo URL, and agent payout wallet.
+3. Fund Critical, High, and Medium bounty tiers.
+4. Funding starts the Somnia Agent automation chain.
+5. Agents and backend coordinate until a valid fix is paid or the job needs review.
+
+## Agent Behavior
+
+### 1. Project Registration
+
+The publisher registers project metadata onchain through `SomniBountyAI`.
+
+Stored fields:
+
+- project name
+- description
+- optional social URL
+- optional image URL
+- GitHub repo URL
+- metadata hash
+- publisher wallet
+- agent payout wallet
+
+Long metadata can be pinned to IPFS through the web API, but core project fields are stored in the smart contract.
+
+### 2. Bounty Funding
+
+The publisher funds three severity tiers:
+
+```text
+Critical minimum: 0.05 STT
+High minimum:     0.02 STT
+Medium minimum:   0.01 STT
+```
+
+The same transaction also reserves Somnia Agent fees. Once funded, the contract creates the first agent request.
+
+### 3. Repo Snapshot Agent
+
+The contract asks the Somnia JSON API Agent to fetch:
+
+```text
+GET /api/repo/snapshot?projectId=...&scanJobId=...
+```
+
+The backend reads the project from chain, authenticates as the GitHub App, fetches the repo tree and Solidity files, and returns a compact `agentInput` string. Repo content is treated as untrusted evidence because comments, READMEs, and source files can contain prompt injection.
+
+### 4. Discovery Agent
+
+The contract asks the Somnia LLM Inference Agent to compare the repo snapshot against `VulnerabilityRegistry`.
+
+Allowed outputs:
+
+```text
+CRITICAL
+HIGH
+MEDIUM
+NONE
+NEEDS_REVIEW
+```
+
+The agent does not receive arbitrary payout authority. It only classifies the candidate state for the contract.
+
+### 5. Second Review Agent
+
+The contract asks a second LLM review step to validate the candidate.
+
+Allowed outputs:
+
+```text
+VALID
+INVALID
+NEEDS_REVIEW
+```
+
+If the second review is not `VALID`, no bounty is reserved for payout.
+
+### 6. PR Creation Agent Bridge
+
+If the finding is valid, the contract opens an incident and asks the Somnia JSON API Agent to call:
+
+```text
+GET /api/fix-pr?jobId=...
+```
+
+The backend:
+
+- reads the scan job and project from chain
+- uses the GitHub App installation token
+- fetches Solidity files
+- asks OpenAI/Codex to propose constrained file replacements
+- creates branch `somnibounty/<projectId>-<jobId>`
+- opens or returns the same PR
+
+The endpoint is idempotent because multiple Somnia validators may request the same URL. Duplicate calls must return the same PR instead of creating multiple branches.
+
+### 7. Final Somnia Verifier
+
+The contract records the PR URL as fix proof and asks the Somnia LLM Inference Agent for a final verdict.
+
+Allowed outputs:
+
+```text
+VALID
+INVALID
+NEEDS_REVIEW
+```
+
+Only `VALID` releases the bounty. The payout goes to the configured agent payout wallet, not to an arbitrary caller.
+
+## Smart Contracts
+
+### `VulnerabilityRegistry`
+
+Stores known Solidity/EVM vulnerability templates so agents have a shared onchain reference.
+
+Initial templates:
+
+- reentrancy
+- access control bypass
+- unchecked external call
+- signature replay
+- oracle manipulation
+- price or slippage manipulation
+- unsafe ERC20 transfer
+- delegatecall or proxy storage collision
+- `tx.origin` authentication
+- denial of service
+- precision or rounding loss
+- upgradeability or admin risk
+
+Each template includes category, title, description, detection signals, vulnerable pattern, fix guidance, impact, metadata URI, content hash, and active flag.
+
+### `SomniBountyAI`
+
+Owns the bounty lifecycle:
+
+- project registration
+- bounty tier funding
+- agent request chain
+- callback validation
+- incident creation
+- fix proof tracking
+- final verifier result
+- payout
+- paid bounty history
+
+Callback invariants:
+
+- only the Somnia Agent platform can call `handleResponse`
+- request ID must exist
+- pending request is deleted before state changes
+- failed and timed-out responses are handled
+- payout path uses reentrancy guard
+- repeated callbacks cannot double pay
+- no admin drain path
 
 ## Backend API
 
-Runtime-supported endpoints:
+The backend is a support layer, not the source of truth.
+
+Runtime endpoints:
 
 - `GET /api/repo/snapshot?projectId=...`
-  - Reads the project GitHub URL from the contract.
-  - Fetches repo tree and Solidity file contents through GitHub App auth.
-  - Read-only.
+  Reads project state from chain and returns GitHub repo evidence for the agent.
 - `GET /api/fix-pr?jobId=...`
-  - Reads scan job and project from contract.
-  - Creates branch `somnibounty/<projectId>-<jobId>`.
-  - Uses OpenAI/Codex only to generate constrained file replacements.
-  - Idempotent: duplicate validator calls return the same PR.
+  Creates or returns an idempotent GitHub PR for a valid scan job.
 - `POST /api/ipfs/project`
-  - Pins project metadata to IPFS with Pinata.
+  Pins project metadata to IPFS.
 - `POST /api/ipfs/proof`
-  - Pins fix proof/report JSON to IPFS.
+  Pins proof or report JSON to IPFS. This exists, but the current MVP automatic chain uses the PR URL as proof.
+- `GET /api/health`
+  Health check endpoint for Docker and Northflank.
 
-Deprecated legacy routes under `/api/agents/*` return `410`.
+Deprecated `/api/agents/*` routes return `410`.
 
-## Frontend
+## Cost Per Full Run
 
-- Next.js App Router.
-- TypeScript.
-- Tailwind CSS v4.
-- Motion.
-- `viem`.
-- React Hook Form plus Zod for all forms.
-- Matrix-style 4 second loader.
-- First real screen is project registration, not a dashboard.
-- Dashboard uses live contract data only.
-- Primary action is `Set Up Bounty`.
-- Logs view derives status from live projects, scan jobs, incidents, fixes, and paid bounties.
-- Paid history page: `/bounties/paid`.
+Somnia Agent fee formula:
 
-## Somnia Testnet
+```text
+request cost = getRequestDeposit() + pricePerAgent * subcommitteeSize
+```
+
+Current verified values from Somnia docs and live platform:
+
+```text
+getRequestDeposit(): 0.03 STT
+subcommittee size:  3
+JSON API Agent:     0.03 STT per validator
+LLM Inference:      0.07 STT per validator
+```
+
+Per-request costs:
+
+```text
+JSON API request = 0.03 + 0.03 * 3 = 0.12 STT
+LLM request      = 0.03 + 0.07 * 3 = 0.24 STT
+```
+
+Current MVP chain:
+
+```text
+2 JSON API requests
+3 LLM requests
+```
+
+Agent fee total:
+
+```text
+2 * 0.12 + 3 * 0.24 = 0.96 STT
+```
+
+Minimum bounty funding:
+
+```text
+Critical 0.05 + High 0.02 + Medium 0.01 = 0.08 STT
+```
+
+Minimum full run:
+
+```text
+0.96 STT agent fees + 0.08 STT bounty tiers = 1.04 STT
+```
+
+Cheaper future path:
+
+```text
+JSON snapshot -> LLM scan -> JSON PR -> LLM final verifier
+```
+
+That would use `2 JSON + 2 LLM = 0.72 STT` in agent fees, or `0.80 STT` including minimum bounty tiers. The MVP keeps the second-review step for clearer demo safety.
+
+## Current Deployment
+
+Somnia testnet:
 
 ```text
 Chain ID: 50312
 RPC: https://api.infra.testnet.somnia.network/
-WSS: wss://api.infra.testnet.somnia.network/ws
 Explorer: https://shannon-explorer.somnia.network/
-Known Agent platform from research: 0x037Bb9C718F3f7fe5eCBDB0b600D607b52706776
+Agent platform: 0x037Bb9C718F3f7fe5eCBDB0b600D607b52706776
 ```
 
-Agent ABI, IDs, fees, and pricing are volatile. Re-check Somnia docs before deploy.
+Current deployed contracts:
 
-## Setup
+```text
+VulnerabilityRegistry: 0x360A084BA109D10DF2a0538B602A8a5842db568b
+SomniBountyAI:         0x5a3a0376f28B9CB1aF5fFD23bBcFCdC71483FC59
+Automation API:        https://p01--somnibountyai--yrnf5wlhj7v8.code.run
+```
 
-Install frontend dependencies:
+Important: after the first deployment, the local smart contract env was corrected so future deployments use the documented fee split: LLM `0.07 STT` per validator and JSON API `0.03 STT` per validator. If the deployed contract was created before that fix, redeploy before a real full agent run.
 
-```powershell
+## Local Setup
+
+Requirements:
+
+- Node.js 22+
+- npm
+- Docker, optional
+- Foundry, for smart contract work
+- GitHub App credentials
+- Pinata JWT
+- OpenAI API key with available quota
+- Somnia testnet wallet with STT
+
+Install web dependencies:
+
+```bash
 cd apps/web
 npm install
 ```
 
-Create frontend env:
+Create web env:
 
-```powershell
-Copy-Item apps/web/.env.example apps/web/.env.local
+```bash
+cp apps/web/.env.example apps/web/.env
 ```
 
-Required live env after deployment:
+Required web env:
 
-```text
+```env
 NEXT_PUBLIC_SOMNIA_RPC_URL=https://api.infra.testnet.somnia.network/
 NEXT_PUBLIC_SOMNIBOUNTY_ADDRESS=
 NEXT_PUBLIC_VULNERABILITY_REGISTRY_ADDRESS=
+SOMNIA_RPC_URL=https://api.infra.testnet.somnia.network/
 SOMNIBOUNTY_ADDRESS=
 VULNERABILITY_REGISTRY_ADDRESS=
 PINATA_JWT=
+OPENAI_API_KEY=
+OPENAI_CODE_MODEL=gpt-5.2-codex
 GITHUB_APP_ID=
 GITHUB_APP_INSTALLATION_ID=
 GITHUB_APP_PRIVATE_KEY=
-OPENAI_API_KEY=
-OPENAI_CODE_MODEL=gpt-5.2-codex
 ```
 
-No current deployment is included in the env by default. Deploy after faucet funding.
+Run web app locally:
 
-## Smart Contract Commands
-
-Run Foundry through WSL:
-
-```powershell
-wsl -d Ubuntu-24.04 -- bash -lc 'cd /mnt/c/Users/sourc/Documents/Dev/Hackathons/Somnia_Hackathon/smart_contract && ~/.foundry/bin/forge test'
+```bash
+cd apps/web
+npm run dev
 ```
 
-Format:
+Build web app:
 
-```powershell
-wsl -d Ubuntu-24.04 -- bash -lc 'cd /mnt/c/Users/sourc/Documents/Dev/Hackathons/Somnia_Hackathon/smart_contract && ~/.foundry/bin/forge fmt --check'
-```
-
-Build:
-
-```powershell
-wsl -d Ubuntu-24.04 -- bash -lc 'cd /mnt/c/Users/sourc/Documents/Dev/Hackathons/Somnia_Hackathon/smart_contract && ~/.foundry/bin/forge build'
-```
-
-## Frontend Commands
-
-```powershell
+```bash
 cd apps/web
 npm run lint
 npm run build
-npm run dev
+```
+
+Run contract tests:
+
+```bash
+cd smart_contract
+forge test
+```
+
+Build contracts:
+
+```bash
+cd smart_contract
+forge build
 ```
 
 ## Docker
 
-Build and run web container locally:
+Run locally with Docker Compose:
 
-```powershell
+```bash
 docker compose --env-file apps/web/.env up --build
 ```
 
 Health check:
 
-```powershell
-Invoke-WebRequest -UseBasicParsing http://localhost:3000/api/health
+```bash
+curl http://localhost:3000/api/health
 ```
 
-Northflank:
+Stop:
+
+```bash
+docker compose down
+```
+
+Northflank deployment settings:
 
 ```text
-Dockerfile path: apps/web/Dockerfile
 Build context: repository root
+Dockerfile path: apps/web/Dockerfile
 Port: 3000
 Health path: /api/health
 ```
 
-Set `NEXT_PUBLIC_*` as build arguments and runtime variables. Set secrets as runtime variables only.
+Set `NEXT_PUBLIC_*` values as both build arguments and runtime variables. Set secrets as runtime variables only.
 
-After Northflank deploy, use public service URL in:
+## Repository Layout
 
 ```text
-AUTOMATION_API_BASE_URL=https://your-northflank-domain
+.
+|-- apps/web                 Next.js app and backend route handlers
+|-- smart_contract           Foundry contracts and tests
+|-- scripts/agent            Agent prompt and helper notes
+|-- docs                     Local architecture and deployment notes
+|-- docker-compose.yml       Local Docker Compose config
+`-- README.md
 ```
 
-More detail: `docs/06-docker-northflank.md`.
+## Verification Status
 
-## Current Verification
+Current checks:
 
-- Foundry: `17 passed, 0 failed`.
-- Frontend lint: passed.
-- Frontend production build: passed.
+- Foundry tests: `17 passed`
+- contract format check: passed
+- web lint: passed
+- web production build: passed
+- Docker Compose syntax: passed
+- public health endpoint: passed
+- Pinata backend route: passed
+- GitHub App token test: passed
 
-## Deployment Status
+Known current blocker:
 
-The current two-contract implementation is not deployed yet because faucet funding is pending.
+- OpenAI/Codex API key returned quota error during backend smoke test. PR generation will not work until OpenAI quota or key is fixed.
+- Full Docker image run was not verified locally because Docker daemon was not running.
+- This is a hackathon MVP. It needs more testing, security review, better failure recovery, and production hardening before real value is put at risk.
 
-Older mock/demo deployments may exist in memory/docs, but they are ABI-incompatible with the current `VulnerabilityRegistry + SomniBountyAI` source and should not be used for this flow.
+## Security Notes
+
+- Repo content is untrusted evidence.
+- GitHub comments, READMEs, Solidity comments, and PR bodies can contain prompt injection.
+- Backend never decides payout validity.
+- Backend must not expose arbitrary calldata or arbitrary repo mutation endpoints.
+- GitHub App should use least privilege:
+  - Contents: read/write
+  - Pull requests: read/write
+  - Metadata: read-only
+- Rotate leaked or pasted secrets before public demos or production use.
 
 ## References
 
-- Somnia Agents guide: https://blog.somnia.network/p/building-on-the-agentic-l1-a-developers
 - Somnia Agents overview: https://somnia.network/agents
+- Somnia Agents developer guide: https://blog.somnia.network/p/building-on-the-agentic-l1-a-developers
 - OpenAI code generation: https://platform.openai.com/docs/guides/code-generation
 - OpenAI Responses API: https://platform.openai.com/docs/api-reference/responses

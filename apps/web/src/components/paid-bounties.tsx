@@ -15,14 +15,14 @@ function PaidBountyRow({ bounty }: { bounty: UiPaidBounty }) {
       </td>
       <td className="px-4 py-4">
         <p className="font-display text-sm font-semibold text-white">{bounty.project}</p>
-        <p className="mt-1 font-mono text-xs text-[var(--ink-muted)]">
+        <p className="mt-1 font-mono text-xs text-white/45">
           INC-{bounty.incidentId.toString().padStart(3, "0")}
         </p>
       </td>
       <td className="px-4 py-4 font-mono text-xs text-cyan-100">
         {shortWallet(bounty.payoutRecipient)}
       </td>
-      <td className="px-4 py-4 font-mono text-xs text-[var(--gold)]">{bounty.amount}</td>
+      <td className="px-4 py-4 font-mono text-xs text-amber-200">{bounty.amount}</td>
       <td className="px-4 py-4">
         <span className="rounded-full border border-emerald-200/20 bg-emerald-300/10 px-3 py-1 font-mono text-xs text-emerald-100">
           {bounty.verifierResult}
@@ -56,35 +56,34 @@ export function PaidBounties() {
   const bounty = useSomniBounty(null, null);
 
   return (
-    <main className="noise scanlines relative min-h-[100dvh] overflow-hidden px-4 py-5 text-foreground sm:px-6 lg:px-8">
+    <main className="noise scanlines relative min-h-[100dvh] overflow-hidden bg-[#030706] px-4 py-5 text-foreground sm:px-6 lg:px-8">
       <div className="aurora" aria-hidden="true" />
       <div className="relative z-10 mx-auto max-w-[86rem]">
-        <nav className="flex items-center justify-between rounded-full border border-emerald-100/12 bg-black/32 px-4 py-3 shadow-[0_22px_80px_rgba(0,0,0,0.28)] backdrop-blur-2xl">
+        <nav className="flex flex-wrap items-center justify-between gap-3 rounded-full border border-white/10 bg-black/34 px-4 py-3 backdrop-blur-2xl">
           <Link href="/" className="iris-text font-display text-base font-semibold">
             SomniBounty AI
           </Link>
           <Link
             href="/"
-            className="rounded-full border border-cyan-200/20 bg-cyan-200/[0.08] px-4 py-2 text-sm text-cyan-50 transition-colors hover:bg-cyan-200/[0.14]"
+            className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-white/72 transition hover:bg-white/[0.08]"
           >
             Console
           </Link>
         </nav>
 
-        <section className="mt-8 grid gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
-          <div className="bezel rounded-[1.85rem] p-1.5">
-            <div className="bezel-core rounded-[1.45rem] p-5 sm:p-6">
+        <section className="mt-8 grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem]">
+          <div className="rounded-[1.5rem] border border-white/10 bg-black/28 p-5 shadow-[0_28px_90px_rgba(0,0,0,0.28)] sm:p-6">
               <p className="font-mono text-xs uppercase tracking-[0.22em] text-emerald-200/70">
                 paid history
               </p>
               <h1 className="mt-3 font-display text-3xl font-semibold text-white sm:text-5xl">
                 Paid Bounties
               </h1>
-              <p className="mt-4 max-w-2xl text-sm leading-6 text-[var(--ink-muted)]">
+              <p className="mt-4 max-w-2xl text-sm leading-6 text-white/55">
                 Live Somnia testnet records where verifier result is VALID and escrow released STT.
               </p>
 
-              <div className="mt-7 overflow-hidden rounded-[1.1rem] border border-white/8 bg-black/24">
+              <div className="mt-7 overflow-hidden rounded-[1.1rem] border border-white/8 bg-white/[0.025]">
                 {bounty.paidBounties.length > 0 ? (
                   <div className="overflow-x-auto">
                     <table className="w-full min-w-[54rem] border-collapse text-left">
@@ -101,7 +100,7 @@ export function PaidBounties() {
                           ].map((label) => (
                             <th
                               key={label}
-                              className="px-4 py-3 font-mono text-[0.68rem] uppercase tracking-[0.18em] text-[var(--ink-muted)]"
+                              className="px-4 py-3 font-mono text-[0.68rem] uppercase tracking-[0.18em] text-white/45"
                             >
                               {label}
                             </th>
@@ -120,36 +119,42 @@ export function PaidBounties() {
                     <p className="font-display text-xl font-semibold text-white">
                       No paid bounties yet
                     </p>
-                    <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-[var(--ink-muted)]">
+                    <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-white/52">
                       History appears after live contract data contains a paid fix.
                     </p>
                   </div>
                 )}
               </div>
-            </div>
           </div>
 
-          <aside className="bezel rounded-[1.85rem] p-1.5">
-            <div className="bezel-core h-full rounded-[1.45rem] p-5">
+          <aside className="rounded-[1.5rem] border border-white/10 bg-black/28 p-5">
               <p className="font-mono text-xs uppercase tracking-[0.22em] text-cyan-100/70">
                 sync
               </p>
-              <p className="mt-5 text-sm leading-6 text-[var(--ink-muted)]">{bounty.status}</p>
-              <div className="gold-line my-5 h-px w-full" />
-              <p className="font-mono text-xs text-emerald-100">
-                {String(bounty.paidBounties.length).padStart(2, "0")} paid records
-              </p>
+              <div className="mt-5 rounded-xl border border-white/8 bg-white/[0.035] p-4">
+                <p className="font-mono text-[0.68rem] uppercase tracking-[0.18em] text-white/45">
+                  status
+                </p>
+                <p className="mt-3 text-sm leading-6 text-white/55">{bounty.status}</p>
+              </div>
+              <div className="mt-3 rounded-xl border border-white/8 bg-white/[0.035] p-4">
+                <p className="font-mono text-[0.68rem] uppercase tracking-[0.18em] text-white/45">
+                  paid records
+                </p>
+                <p className="mt-3 font-display text-3xl font-semibold text-emerald-100">
+                  {String(bounty.paidBounties.length).padStart(2, "0")}
+                </p>
+              </div>
               {bounty.contractAddress ? (
                 <a
                   href={`${bounty.explorerBase}/address/${bounty.contractAddress}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="mt-4 inline-flex rounded-full border border-emerald-200/20 bg-emerald-300/10 px-4 py-2 text-sm text-emerald-100"
+                  className="mt-4 inline-flex rounded-full border border-emerald-200/20 bg-emerald-300/10 px-4 py-2 text-sm text-emerald-100 transition hover:bg-emerald-300/16"
                 >
                   Contract explorer
                 </a>
               ) : null}
-            </div>
           </aside>
         </section>
       </div>

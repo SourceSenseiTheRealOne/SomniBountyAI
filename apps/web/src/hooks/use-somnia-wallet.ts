@@ -59,7 +59,7 @@ export function useSomniaWallet() {
     const provider = getInjectedProvider();
     if (!provider) {
       setStatus("No injected wallet found");
-      return;
+      return null;
     }
 
     try {
@@ -69,7 +69,7 @@ export function useSomniaWallet() {
       const connected = accounts[0];
       if (!connected) {
         setStatus("Wallet locked");
-        return;
+        return null;
       }
 
       await provider.request({
@@ -79,11 +79,12 @@ export function useSomniaWallet() {
 
       setAccount(connected);
       setStatus("Connected to Somnia");
+      return connected;
     } catch (error) {
       const code = typeof error === "object" && error && "code" in error ? Number(error.code) : 0;
       if (code !== 4902) {
         setStatus(errorMessage(error));
-        return;
+        return null;
       }
 
       try {
@@ -102,8 +103,10 @@ export function useSomniaWallet() {
         const accounts = (await provider.request({ method: "eth_accounts" })) as Address[];
         setAccount(accounts[0] ?? null);
         setStatus(accounts[0] ? "Connected to Somnia" : "Wallet locked");
+        return accounts[0] ?? null;
       } catch (addError) {
         setStatus(errorMessage(addError));
+        return null;
       }
     }
   }, []);

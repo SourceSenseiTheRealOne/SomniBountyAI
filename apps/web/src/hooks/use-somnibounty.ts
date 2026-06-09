@@ -37,6 +37,7 @@ export type UiProject = {
   name: string;
   description: string;
   owner: string;
+  ownerAddress: Address;
   socialUrl: string;
   imageUrl: string;
   githubRepo: string;
@@ -348,6 +349,7 @@ export function useSomniBounty(walletClient: WalletClient | null, account: Addre
             name: project.name,
             description: project.description,
             owner: shortAddress(project.owner),
+            ownerAddress: project.owner,
             socialUrl: project.socialUrl,
             imageUrl: project.imageUrl,
             githubRepo: project.githubRepo,

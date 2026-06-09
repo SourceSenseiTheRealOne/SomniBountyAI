@@ -145,7 +145,6 @@ contract SomniBountyAI is IAgentRequesterHandler {
     mapping(uint256 projectId => Project project) private projectStore;
     mapping(uint256 projectId => BountyTiers tiers) public projectBountyTiers;
     mapping(uint256 scanJobId => ScanJob job) private scanJobStore;
-    mapping(uint256 requestId => uint256 scanJobId) public pendingScanRequests;
     mapping(uint256 requestId => PendingAgentRequest request) public pendingAgentRequests;
     mapping(uint256 incidentId => Incident incident) private incidentStore;
     mapping(uint256 fixId => FixSubmission fixSubmission) private fixStore;
@@ -347,7 +346,6 @@ contract SomniBountyAI is IAgentRequesterHandler {
         });
 
         requestId = _requestSnapshot(scanJobId);
-        pendingScanRequests[requestId] = scanJobId;
 
         if (msg.value > bountyTotal + fee) {
             (bool refunded,) = msg.sender.call{ value: msg.value - bountyTotal - fee }("");
@@ -403,7 +401,6 @@ contract SomniBountyAI is IAgentRequesterHandler {
 
         PendingAgentRequest memory agentRequest = pendingAgentRequests[requestId];
         if (agentRequest.exists) {
-            delete pendingScanRequests[requestId];
             delete pendingAgentRequests[requestId];
             _handleAgentResponse(requestId, agentRequest, responses, status);
             return;
@@ -599,9 +596,7 @@ contract SomniBountyAI is IAgentRequesterHandler {
             " Incident:",
             incident.metadataURI,
             " Proof:",
-            fixSubmission.proofURI,
-            " Pay:",
-            _addressToHexString(fixSubmission.payoutRecipient)
+            fixSubmission.proofURI
         );
         string[] memory allowedValues = new string[](3);
         allowedValues[0] = "VALID";
@@ -1061,19 +1056,6 @@ contract SomniBountyAI is IAgentRequesterHandler {
     function _reopenOrExpire(Incident storage incident) internal {
         incident.status =
             block.timestamp >= incident.deadline ? IncidentStatus.Expired : IncidentStatus.Open;
-    }
-
-    function _addressToHexString(address account) internal pure returns (string memory) {
-        bytes20 value = bytes20(account);
-        bytes16 symbols = "0123456789abcdef";
-        bytes memory buffer = new bytes(42);
-        buffer[0] = "0";
-        buffer[1] = "x";
-        for (uint256 i = 0; i < 20; i++) {
-            buffer[2 + i * 2] = symbols[uint8(value[i] >> 4)];
-            buffer[3 + i * 2] = symbols[uint8(value[i] & 0x0f)];
-        }
-        return string(buffer);
     }
 
     function _uintToString(uint256 value) internal pure returns (string memory) {
