@@ -58,25 +58,24 @@ export function PaidBounties() {
   return (
     <main className="noise scanlines relative min-h-[100dvh] overflow-hidden bg-[#030706] px-4 py-5 text-foreground sm:px-6 lg:px-8">
       <div className="aurora" aria-hidden="true" />
+      <div className="starfield" aria-hidden="true" />
+      <div className="grid-floor" aria-hidden="true" />
       <div className="relative z-10 mx-auto max-w-[86rem]">
-        <nav className="flex flex-wrap items-center justify-between gap-3 rounded-full border border-white/10 bg-black/34 px-4 py-3 backdrop-blur-2xl">
+        <nav className="nav-glass flex flex-wrap items-center justify-between gap-3 rounded-full border border-white/10 px-4 py-3">
           <Link href="/" className="iris-text font-display text-base font-semibold">
             SomniBounty AI
           </Link>
-          <Link
-            href="/"
-            className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-white/72 transition hover:bg-white/[0.08]"
-          >
+          <Link href="/" className="btn-ghost px-4 py-2 text-sm">
             Console
           </Link>
         </nav>
 
         <section className="mt-8 grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem]">
-          <div className="rounded-[1.5rem] border border-white/10 bg-black/28 p-5 shadow-[0_28px_90px_rgba(0,0,0,0.28)] sm:p-6">
+          <div className="holo-panel rounded-[1.5rem] border border-white/10 p-5 sm:p-6">
               <p className="font-mono text-xs uppercase tracking-[0.22em] text-emerald-200/70">
                 paid history
               </p>
-              <h1 className="mt-3 font-display text-3xl font-semibold text-white sm:text-5xl">
+              <h1 className="chrome-text mt-3 font-display text-3xl font-semibold sm:text-5xl">
                 Paid Bounties
               </h1>
               <p className="mt-4 max-w-2xl text-sm leading-6 text-white/55">
@@ -127,17 +126,17 @@ export function PaidBounties() {
               </div>
           </div>
 
-          <aside className="rounded-[1.5rem] border border-white/10 bg-black/28 p-5">
+          <aside className="holo-panel rounded-[1.5rem] border border-white/10 p-5">
               <p className="font-mono text-xs uppercase tracking-[0.22em] text-cyan-100/70">
                 sync
               </p>
-              <div className="mt-5 rounded-xl border border-white/8 bg-white/[0.035] p-4">
+              <div className="mt-5 rounded-xl holo-card border border-white/8 p-4">
                 <p className="font-mono text-[0.68rem] uppercase tracking-[0.18em] text-white/45">
                   status
                 </p>
                 <p className="mt-3 text-sm leading-6 text-white/55">{bounty.status}</p>
               </div>
-              <div className="mt-3 rounded-xl border border-white/8 bg-white/[0.035] p-4">
+              <div className="mt-3 rounded-xl holo-card border border-white/8 p-4">
                 <p className="font-mono text-[0.68rem] uppercase tracking-[0.18em] text-white/45">
                   paid records
                 </p>

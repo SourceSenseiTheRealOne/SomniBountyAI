@@ -8,7 +8,12 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { type Address } from "viem";
 import { useSomniaWallet } from "@/hooks/use-somnia-wallet";
-import { hashText, useSomniBounty, type UiProject } from "@/hooks/use-somnibounty";
+import {
+  hashText,
+  useSomniBounty,
+  type UiPaidBounty,
+  type UiProject,
+} from "@/hooks/use-somnibounty";
 import {
   projectMetadataSchema,
   type ProjectMetadataFormValues,
@@ -45,7 +50,7 @@ type RegistrationValues = z.infer<typeof registrationSchema>;
 type RegistrationInput = z.input<typeof registrationSchema>;
 type BountyValues = z.infer<typeof bountySchema>;
 type BountyInput = z.input<typeof bountySchema>;
-type DashboardView = "overview" | "logs";
+type DashboardView = "overview" | "logs" | "paid";
 
 function FieldError({ message }: { message?: string }) {
   if (!message) return null;
@@ -126,14 +131,7 @@ function MatrixLoader() {
       ))}
       <div className="relative z-10 flex min-h-[100dvh] items-center justify-center px-6 text-center">
         <div className="mx-auto flex w-full max-w-xl flex-col items-center">
-          <motion.div
-            className="grid h-24 w-24 shrink-0 place-items-center rounded-full border border-emerald-200/20 bg-emerald-300/10 shadow-[0_0_80px_rgba(52,211,153,0.2)]"
-            animate={{ scale: [1, 1.06, 1], rotate: [0, 2, -2, 0] }}
-            transition={{ duration: 1.8, repeat: Infinity, ease: [0.32, 0.72, 0, 1] }}
-          >
-            <span className="font-mono text-3xl font-semibold">SB</span>
-          </motion.div>
-          <h1 className="mt-8 font-display text-4xl font-semibold text-white sm:text-6xl">
+          <h1 className="chrome-text font-display text-4xl font-semibold sm:text-6xl">
             SomniBounty AI
           </h1>
           <p className="mt-4 font-mono text-xs uppercase tracking-[0.32em] text-emerald-100/70">
@@ -169,9 +167,22 @@ function Button({
       type={type}
       disabled={disabled}
       onClick={onClick}
-      className="inline-flex min-h-11 items-center justify-center rounded-full border border-emerald-200/20 bg-emerald-300/12 px-5 text-sm font-medium text-emerald-50 transition hover:border-emerald-200/45 hover:bg-emerald-300/18 disabled:cursor-not-allowed disabled:opacity-45"
+      className="btn-neon min-h-11 px-5 text-sm"
     >
       {children}
+    </button>
+  );
+}
+
+function ModalCloseButton({ onClick }: { onClick?: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="Close modal"
+      className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[0.04] font-mono text-sm text-white/72 transition hover:bg-white/[0.08] focus:outline-none focus:ring-2 focus:ring-emerald-200/30"
+    >
+      X
     </button>
   );
 }
@@ -193,13 +204,10 @@ function ConnectWalletView({
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: -12, opacity: 0 }}
       >
-        <div className="mx-auto grid h-20 w-20 place-items-center rounded-full border border-emerald-200/20 bg-emerald-300/10 shadow-[0_0_70px_rgba(52,211,153,0.18)]">
-          <span className="font-mono text-2xl font-semibold text-emerald-100">SB</span>
-        </div>
-        <p className="mt-7 font-mono text-xs uppercase tracking-[0.28em] text-emerald-200/70">
+        <p className="font-mono text-xs uppercase tracking-[0.28em] text-emerald-200/70">
           SomniBounty AI
         </p>
-        <h1 className="mt-3 font-display text-4xl font-semibold text-white sm:text-6xl">
+        <h1 className="chrome-text mt-3 font-display text-4xl font-semibold sm:text-6xl">
           Connect wallet
         </h1>
         <p className="mx-auto mt-4 max-w-md text-sm leading-6 text-white/55">
@@ -223,21 +231,23 @@ function ConnectWalletView({
 function ShellNav({
   activeView,
   setActiveView,
+  onHowItWorks,
   onRegister,
   onBounty,
 }: {
   activeView: DashboardView;
   setActiveView: (view: DashboardView) => void;
+  onHowItWorks: () => void;
   onRegister: () => void;
   onBounty: () => void;
 }) {
   return (
-    <nav className="flex flex-wrap items-center justify-between gap-3 rounded-full border border-white/10 bg-black/34 px-4 py-3 backdrop-blur-2xl">
+    <nav className="nav-glass flex flex-wrap items-center justify-between gap-3 rounded-full border border-white/10 px-4 py-3">
       <Link href="/" className="iris-text font-display text-base font-semibold">
         SomniBounty AI
       </Link>
       <div className="flex flex-wrap items-center gap-2">
-        {(["overview", "logs"] as DashboardView[]).map((view) => (
+        {(["overview", "logs", "paid"] as DashboardView[]).map((view) => (
           <button
             key={view}
             onClick={() => setActiveView(view)}
@@ -247,23 +257,16 @@ function ShellNav({
                 : "border border-white/10 bg-white/[0.04] text-white/72 hover:bg-white/[0.08]"
             }`}
           >
-            {view === "overview" ? "Overview" : "Logs"}
+            {view === "overview" ? "Overview" : view === "logs" ? "Logs" : "Paid History"}
           </button>
         ))}
-        <Link
-          href="/bounties/paid"
+        <button
+          type="button"
+          onClick={onHowItWorks}
           className={`${navItemBase} border border-white/10 bg-white/[0.04] text-white/72 hover:bg-white/[0.08]`}
         >
-          Paid History
-        </Link>
-        <a
-          href={twitterUrl}
-          target="_blank"
-          rel="noreferrer"
-          className={`${navItemBase} border border-cyan-200/20 bg-cyan-300/10 text-cyan-50`}
-        >
-          Follow us on X
-        </a>
+          How It Works
+        </button>
         <button
           type="button"
           onClick={onRegister}
@@ -278,6 +281,14 @@ function ShellNav({
         >
           Set Up Bounty
         </button>
+        <a
+          href={twitterUrl}
+          target="_blank"
+          rel="noreferrer"
+          className={`${navItemBase} border border-cyan-200/20 bg-cyan-300/10 text-cyan-50 hover:bg-cyan-300/16`}
+        >
+          Follow us on X
+        </a>
       </div>
     </nav>
   );
@@ -292,9 +303,9 @@ function Stat({
   value: string;
   onClick?: () => void;
 }) {
-  const className = `rounded-[1.2rem] border border-white/8 bg-white/[0.035] p-4 ${
+  const className = `stat-tile rounded-[1.2rem] border border-white/8 p-4 ${
     onClick
-      ? "text-left transition hover:border-emerald-200/24 hover:bg-emerald-300/8 focus:outline-none focus:ring-2 focus:ring-emerald-200/30"
+      ? "text-left focus:outline-none focus:ring-2 focus:ring-emerald-200/30"
       : ""
   }`;
   const content = (
@@ -352,40 +363,36 @@ function RegistrationView({
   });
 
   const content = (
-    <div className="mx-auto w-full max-w-5xl">
+    <div className="relative mx-auto w-full max-w-5xl">
+        {variant === "modal" ? (
+          <div className="absolute right-0 top-0 z-10">
+            <ModalCloseButton onClick={onClose} />
+          </div>
+        ) : null}
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-          <div>
+          <div className={variant === "modal" ? "pr-12" : ""}>
             <p className="font-mono text-xs uppercase tracking-[0.24em] text-emerald-200/70">
               register project
             </p>
-            <h1 className="mt-3 font-display text-4xl font-semibold text-white sm:text-6xl">
+            <h1 className="chrome-text mt-3 font-display text-4xl font-semibold sm:text-6xl">
               Publish a bounty target
             </h1>
           </div>
           <div className="flex items-center gap-2">
             <Button onClick={connect}>{connectedAccount ? walletStatus : "Connect Wallet"}</Button>
-            {variant === "modal" ? (
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-white/72 transition hover:bg-white/[0.08]"
-              >
-                Return to Dashboard
-              </button>
-            ) : null}
           </div>
         </div>
 
         <form
           onSubmit={form.handleSubmit(onSubmit)}
-          className="rounded-[1.5rem] border border-white/10 bg-black/32 p-5 shadow-[0_28px_90px_rgba(0,0,0,0.32)] backdrop-blur-2xl sm:p-7"
+          className="holo-panel rounded-[1.5rem] border border-white/10 p-5 sm:p-7"
         >
           <div className="grid gap-4 md:grid-cols-2">
             <label className="block">
               <span className="text-sm text-white/72">Project name</span>
               <input
                 {...form.register("name")}
-                className="mt-2 w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none focus:border-emerald-200/45"
+                className="focus-neon mt-2 w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none transition"
               />
               <FieldError message={form.formState.errors.name?.message} />
             </label>
@@ -394,7 +401,7 @@ function RegistrationView({
               <input
                 {...form.register("githubRepo")}
                 placeholder="https://github.com/org/repo"
-                className="mt-2 w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none focus:border-emerald-200/45"
+                className="focus-neon mt-2 w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none transition"
               />
               <FieldError message={form.formState.errors.githubRepo?.message} />
             </label>
@@ -403,7 +410,7 @@ function RegistrationView({
               <textarea
                 {...form.register("description")}
                 rows={4}
-                className="mt-2 w-full resize-none rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none focus:border-emerald-200/45"
+                className="focus-neon mt-2 w-full resize-none rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none transition"
               />
               <FieldError message={form.formState.errors.description?.message} />
             </label>
@@ -411,7 +418,7 @@ function RegistrationView({
               <span className="text-sm text-white/72">Social media URL</span>
               <input
                 {...form.register("socialUrl")}
-                className="mt-2 w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none focus:border-emerald-200/45"
+                className="focus-neon mt-2 w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none transition"
               />
               <FieldError message={form.formState.errors.socialUrl?.message} />
             </label>
@@ -419,7 +426,7 @@ function RegistrationView({
               <span className="text-sm text-white/72">Image URL</span>
               <input
                 {...form.register("imageUrl")}
-                className="mt-2 w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none focus:border-emerald-200/45"
+                className="focus-neon mt-2 w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none transition"
               />
               <FieldError message={form.formState.errors.imageUrl?.message} />
             </label>
@@ -496,6 +503,97 @@ function Overview({
   const selectedPaidBounties = selectedProjectId
     ? paidBounties.filter((bounty) => bounty.projectId === selectedProjectId)
     : paidBounties;
+  const agentAnswersByJob = useMemo(() => {
+    type AgentAnswer = {
+      label: string;
+      value: string;
+      status: "complete" | "pending" | "failed";
+      href?: string;
+    };
+    const complete: AgentAnswer["status"] = "complete";
+    const pending: AgentAnswer["status"] = "pending";
+    const failed: AgentAnswer["status"] = "failed";
+    const isRelevantProjectLog = (job: (typeof selectedJobs)[number], step: string) =>
+      job.fixId > 0n &&
+      ["somnia verifier result", "bounty paid", "fix verified"].some((needle) =>
+        step.toLowerCase().includes(needle),
+      );
+
+    const answerFor = (
+      job: (typeof selectedJobs)[number],
+      labels: string[],
+      fallback?: string,
+    ) => {
+      const matchingLog = selectedLogs.find((log) => {
+        const step = log.step.toLowerCase();
+        const matchesLabel = labels.some((label) => step.includes(label));
+        if (!matchesLabel) return false;
+        return (
+          log.scanJobId === job.numericScanJobId ||
+          (!log.scanJobId && log.projectId === job.projectId && isRelevantProjectLog(job, step))
+        );
+      });
+      return matchingLog?.detail || fallback || "";
+    };
+
+    const answers = new Map<string, AgentAnswer[]>();
+
+    for (const job of selectedJobs) {
+      const paidBounty = selectedPaidBounties.find(
+        (bounty) =>
+          bounty.fixId === job.fixId ||
+          (job.fixId > 0n && bounty.projectId === job.projectId && bounty.incidentId === job.incidentId),
+      );
+      const rows: AgentAnswer[] = [
+        {
+          label: "Snapshot",
+          value: answerFor(job, ["snapshot fetched", "repo tree fetched"], job.snapshot),
+          status: job.snapshot ? complete : pending,
+        },
+        {
+          label: "Scan",
+          value: answerFor(
+            job,
+            ["candidate found", "vulnerability candidate", "scan no finding", "scan needs review", "scan failed"],
+            job.result || job.resultHash,
+          ),
+          status: job.status === "Pending" ? pending : job.status === "Failed" ? failed : complete,
+        },
+        {
+          label: "Second review",
+          value: answerFor(job, ["candidate validated", "second review result"]),
+          status: job.incidentId > 0n ? complete : job.status === "Pending" ? pending : failed,
+        },
+        {
+          label: "PR",
+          value: answerFor(job, ["pr created", "pr requested"]),
+          status: job.fixId > 0n ? complete : job.incidentId > 0n ? pending : failed,
+        },
+        {
+          label: "Verifier",
+          value: answerFor(job, ["somnia verifier result", "final review result", "fix verified"]),
+          status: paidBounty ? complete : job.fixId > 0n ? pending : failed,
+        },
+        {
+          label: "Payout",
+          value: paidBounty
+            ? `${paidBounty.amount} to ${paidBounty.payoutRecipient}`
+            : answerFor(job, ["bounty paid"]),
+          status: paidBounty ? complete : pending,
+        },
+      ].filter((row) => row.value);
+
+      answers.set(
+        job.id,
+        rows.map((row) => ({
+          ...row,
+          href: /^https?:\/\//.test(row.value) ? row.value : undefined,
+        })),
+      );
+    }
+
+    return answers;
+  }, [selectedJobs, selectedLogs, selectedPaidBounties]);
   const selectedPaidCount = selectedProjectId
     ? selectedPaidBounties.length
     : paidBounties.length;
@@ -564,7 +662,7 @@ function Overview({
           <Stat label="Paid bounties" value={paidBounties.length.toString()} />
         </div>
 
-        <div className="rounded-[1.5rem] border border-white/10 bg-black/28 p-5">
+        <div className="rounded-[1.5rem] holo-panel border border-white/10 p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p className="font-mono text-xs uppercase tracking-[0.22em] text-cyan-100/70">
@@ -591,7 +689,7 @@ function Overview({
 
           <div className="mt-6 grid gap-4 lg:grid-cols-3">
             {tierChart.map(([label, value, color]) => (
-              <div key={label} className="rounded-xl border border-white/8 bg-white/[0.035] p-4">
+              <div key={label} className="rounded-xl holo-card border border-white/8 p-4">
                 <div className="flex items-center justify-between">
                   <p className="text-sm text-white/70">{label}</p>
                   <p className="font-mono text-xs text-white/50">
@@ -600,7 +698,7 @@ function Overview({
                 </div>
                 <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/8">
                   <div
-                    className={`h-full rounded-full ${color}`}
+                    className={`tier-bar h-full rounded-full ${color}`}
                     style={{ width: `${Math.max(4, (Number(value) / maxTier) * 100)}%` }}
                   />
                 </div>
@@ -609,27 +707,76 @@ function Overview({
           </div>
         </div>
 
-        <div className="rounded-[1.5rem] border border-white/10 bg-black/28 p-5">
+        <div className="rounded-[1.5rem] holo-panel border border-white/10 p-5">
           <p className="font-mono text-xs uppercase tracking-[0.22em] text-emerald-100/70">
             agent jobs
           </p>
           <div className="mt-4 grid gap-3">
-            {scanJobs.length > 0 ? (
-              scanJobs.map((job) => (
+            {selectedJobs.length > 0 ? (
+              selectedJobs.map((job) => {
+                const agentAnswers = agentAnswersByJob.get(job.id) ?? [];
+                return (
                 <div
                   key={job.id}
-                  className="grid gap-3 rounded-xl border border-white/8 bg-white/[0.035] p-4 md:grid-cols-[8rem_1fr_10rem]"
+                  className="rounded-xl holo-card border border-white/8 p-4"
                 >
-                  <p className="font-mono text-xs text-emerald-100">{job.id}</p>
-                  <div>
-                    <p className="text-sm font-medium text-white">{job.project}</p>
-                    <p className="mt-1 truncate text-xs text-white/45">{job.result || job.resultHash}</p>
+                  <div className="grid gap-3 md:grid-cols-[8rem_1fr_10rem]">
+                    <p className="font-mono text-xs text-emerald-100">{job.id}</p>
+                    <div>
+                      <p className="text-sm font-medium text-white">{job.project}</p>
+                      <p className="mt-1 truncate text-xs text-white/45">
+                        {job.result || job.resultHash}
+                      </p>
+                    </div>
+                    <p className="font-mono text-xs text-cyan-100">{job.status}</p>
                   </div>
-                  <p className="font-mono text-xs text-cyan-100">{job.status}</p>
+
+                  {agentAnswers.length > 0 ? (
+                    <div className="mt-4 border-t border-white/8 pt-4">
+                      <p className="font-mono text-[0.65rem] uppercase tracking-[0.18em] text-white/38">
+                        Somnia agent answers
+                      </p>
+                      <div className="mt-3 grid gap-2 lg:grid-cols-2">
+                        {agentAnswers.map((answer) => (
+                          <div key={`${job.id}-${answer.label}`} className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`h-2 w-2 shrink-0 rounded-full ${
+                                  answer.status === "complete"
+                                    ? "bg-emerald-300"
+                                    : answer.status === "failed"
+                                      ? "bg-rose-300"
+                                      : "bg-cyan-300"
+                                }`}
+                              />
+                              <p className="font-mono text-[0.65rem] uppercase tracking-[0.14em] text-white/42">
+                                {answer.label}
+                              </p>
+                            </div>
+                            {answer.href ? (
+                              <a
+                                href={answer.href}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="mt-1 block truncate text-xs text-cyan-100 hover:text-cyan-50"
+                              >
+                                {answer.value}
+                              </a>
+                            ) : (
+                              <p className="mt-1 max-h-16 overflow-hidden break-words text-xs leading-5 text-white/62">
+                                {answer.value}
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
-              ))
+                );
+              })
             ) : (
-              <p className="rounded-xl border border-white/8 bg-white/[0.035] p-5 text-sm text-white/52">
+              <p className="rounded-xl holo-card border border-white/8 p-5 text-sm text-white/52">
                 No live scan jobs yet.
               </p>
             )}
@@ -637,7 +784,7 @@ function Overview({
         </div>
       </div>
 
-      <aside className="rounded-[1.5rem] border border-white/10 bg-black/28 p-5">
+      <aside className="rounded-[1.5rem] holo-panel border border-white/10 p-5">
         <p className="font-mono text-xs uppercase tracking-[0.22em] text-white/45">flow</p>
         <div className="mt-5 grid gap-3">
           {flowSteps.map((step, index) => (
@@ -684,7 +831,7 @@ function Overview({
 
 function LogsView({ logs }: { logs: ReturnType<typeof useSomniBounty>["agentLogs"] }) {
   return (
-    <section className="mt-6 rounded-[1.5rem] border border-white/10 bg-black/28 p-5">
+    <section className="mt-6 rounded-[1.5rem] holo-panel border border-white/10 p-5">
       <p className="font-mono text-xs uppercase tracking-[0.22em] text-emerald-100/70">
         agent logs
       </p>
@@ -693,7 +840,7 @@ function LogsView({ logs }: { logs: ReturnType<typeof useSomniBounty>["agentLogs
           logs.map((log) => (
             <div
               key={log.id}
-              className="grid gap-3 rounded-xl border border-white/8 bg-white/[0.035] p-4 md:grid-cols-[9rem_1fr_7rem]"
+              className="grid gap-3 rounded-xl holo-card border border-white/8 p-4 md:grid-cols-[9rem_1fr_7rem]"
             >
               <p className="font-mono text-xs text-white/45">
                 {log.scanJobId ? `JOB-${log.scanJobId}` : `PRJ-${log.projectId}`}
@@ -716,12 +863,285 @@ function LogsView({ logs }: { logs: ReturnType<typeof useSomniBounty>["agentLogs
             </div>
           ))
         ) : (
-          <p className="rounded-xl border border-white/8 bg-white/[0.035] p-5 text-sm text-white/52">
+          <p className="rounded-xl holo-card border border-white/8 p-5 text-sm text-white/52">
             No live agent logs yet.
           </p>
         )}
       </div>
     </section>
+  );
+}
+
+function shortWallet(address: string) {
+  return `${address.slice(0, 6)}...${address.slice(-4)}`;
+}
+
+function PaidHistoryView({
+  paidBounties,
+  contractAddress,
+  explorerBase,
+  status,
+}: {
+  paidBounties: UiPaidBounty[];
+  contractAddress: string | null;
+  explorerBase: string;
+  status: string;
+}) {
+  return (
+    <section className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem]">
+      <div className="rounded-[1.5rem] holo-panel border border-white/10 p-5 shadow-[0_28px_90px_rgba(0,0,0,0.28)] sm:p-6">
+        <p className="font-mono text-xs uppercase tracking-[0.22em] text-emerald-200/70">
+          paid history
+        </p>
+        <h1 className="chrome-text mt-3 font-display text-3xl font-semibold sm:text-5xl">
+          Paid Bounties
+        </h1>
+        <p className="mt-4 max-w-2xl text-sm leading-6 text-white/55">
+          Live Somnia testnet records where verifier result is VALID and escrow released STT.
+        </p>
+
+        <div className="mt-7 overflow-hidden rounded-[1.1rem] border border-white/8 bg-white/[0.025]">
+          {paidBounties.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[54rem] border-collapse text-left">
+                <thead className="border-b border-white/8 bg-white/[0.035]">
+                  <tr>
+                    {["Fix", "Project", "Recipient", "Amount", "Verifier", "PR", "Chain"].map(
+                      (label) => (
+                        <th
+                          key={label}
+                          className="px-4 py-3 font-mono text-[0.68rem] uppercase tracking-[0.18em] text-white/45"
+                        >
+                          {label}
+                        </th>
+                      ),
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {paidBounties.map((bounty) => (
+                    <tr key={bounty.fixId.toString()} className="border-b border-white/7 last:border-0">
+                      <td className="px-4 py-4 font-mono text-xs text-emerald-100">
+                        FIX-{bounty.fixId.toString().padStart(3, "0")}
+                      </td>
+                      <td className="px-4 py-4">
+                        <p className="font-display text-sm font-semibold text-white">{bounty.project}</p>
+                        <p className="mt-1 font-mono text-xs text-white/45">
+                          INC-{bounty.incidentId.toString().padStart(3, "0")}
+                        </p>
+                      </td>
+                      <td className="px-4 py-4 font-mono text-xs text-cyan-100">
+                        {shortWallet(bounty.payoutRecipient)}
+                      </td>
+                      <td className="px-4 py-4 font-mono text-xs text-amber-200">{bounty.amount}</td>
+                      <td className="px-4 py-4">
+                        <span className="rounded-full border border-emerald-200/20 bg-emerald-300/10 px-3 py-1 font-mono text-xs text-emerald-100">
+                          {bounty.verifierResult}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4">
+                        <a
+                          href={bounty.proofURI}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="font-mono text-xs text-cyan-100 underline decoration-cyan-200/30 underline-offset-4"
+                        >
+                          PR proof
+                        </a>
+                      </td>
+                      <td className="px-4 py-4">
+                        <a
+                          href={bounty.explorerUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="font-mono text-xs text-emerald-100 underline decoration-emerald-200/30 underline-offset-4"
+                        >
+                          Explorer
+                        </a>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="px-5 py-14 text-center">
+              <p className="font-display text-xl font-semibold text-white">No paid bounties yet</p>
+              <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-white/52">
+                History appears after live contract data contains a paid fix.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <aside className="rounded-[1.5rem] holo-panel border border-white/10 p-5">
+        <p className="font-mono text-xs uppercase tracking-[0.22em] text-cyan-100/70">sync</p>
+        <div className="mt-5 rounded-xl holo-card border border-white/8 p-4">
+          <p className="font-mono text-[0.68rem] uppercase tracking-[0.18em] text-white/45">
+            status
+          </p>
+          <p className="mt-3 text-sm leading-6 text-white/55">{status}</p>
+        </div>
+        <div className="mt-3 rounded-xl holo-card border border-white/8 p-4">
+          <p className="font-mono text-[0.68rem] uppercase tracking-[0.18em] text-white/45">
+            paid records
+          </p>
+          <p className="mt-3 font-display text-3xl font-semibold text-emerald-100">
+            {String(paidBounties.length).padStart(2, "0")}
+          </p>
+        </div>
+        {contractAddress ? (
+          <a
+            href={`${explorerBase}/address/${contractAddress}`}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-4 inline-flex rounded-full border border-emerald-200/20 bg-emerald-300/10 px-4 py-2 text-sm text-emerald-100 transition hover:bg-emerald-300/16"
+          >
+            Contract explorer
+          </a>
+        ) : null}
+      </aside>
+    </section>
+  );
+}
+
+function HowItWorksModal({ close }: { close: () => void }) {
+  const steps = [
+    {
+      label: "Connect",
+      title: "Connect Somnia wallet",
+      body: "User connects wallet on Somnia Testnet. Dashboard loads only live onchain projects, jobs, logs, and paid bounties.",
+      tone: "border-cyan-200/20 bg-cyan-300/10 text-cyan-100",
+    },
+    {
+      label: "Publish",
+      title: "Register project",
+      body: "User submits project name, description, optional links, and GitHub repo. Metadata pins to IPFS, core project data stores onchain.",
+      tone: "border-emerald-200/20 bg-emerald-300/10 text-emerald-100",
+    },
+    {
+      label: "Fund",
+      title: "Set bounty tiers",
+      body: "User funds Critical, High, and Medium bounty tiers. Same transaction reserves Somnia Agent fees and starts automation.",
+      tone: "border-amber-200/20 bg-amber-300/10 text-amber-100",
+    },
+    {
+      label: "Scan",
+      title: "Somnia agents inspect repo",
+      body: "JSON API agent fetches repo snapshot. LLM agent compares Solidity files against vulnerability registry templates.",
+      tone: "border-cyan-200/20 bg-cyan-300/10 text-cyan-100",
+    },
+    {
+      label: "Review",
+      title: "Second agent validates",
+      body: "Second LLM review checks candidate severity, affected path, evidence hash, and impact before PR creation starts.",
+      tone: "border-emerald-200/20 bg-emerald-300/10 text-emerald-100",
+    },
+    {
+      label: "Fix",
+      title: "Backend opens PR",
+      body: "Backend uses GitHub App credentials to create an idempotent fix PR. Somnia agents keep validity and payout authority.",
+      tone: "border-rose-200/20 bg-rose-300/10 text-rose-100",
+    },
+    {
+      label: "Pay",
+      title: "Verifier releases bounty",
+      body: "Final Somnia verifier returns VALID. Contract releases STT bounty to fixed platform collector wallet and records paid history.",
+      tone: "border-emerald-200/20 bg-emerald-300/10 text-emerald-100",
+    },
+  ];
+
+  return (
+    <motion.div
+      className="fixed inset-0 z-40 overflow-y-auto bg-black/72 px-3 py-4 backdrop-blur-xl sm:px-4 sm:py-8"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
+      <motion.div
+        className="holo-panel relative mx-auto max-h-[calc(100dvh-2rem)] w-full max-w-5xl overflow-y-auto rounded-[1.5rem] border border-white/10 p-4 sm:max-h-[calc(100dvh-4rem)] sm:p-6 lg:p-7"
+        initial={{ y: 24, opacity: 0, scale: 0.98 }}
+        animate={{ y: 0, opacity: 1, scale: 1 }}
+        exit={{ y: 18, opacity: 0, scale: 0.98 }}
+        transition={{ duration: 0.32, ease: [0.32, 0.72, 0, 1] }}
+      >
+        <div className="absolute right-4 top-4 z-10 sm:right-6 sm:top-6">
+          <ModalCloseButton onClick={close} />
+        </div>
+        <div className="pr-12 sm:pr-14">
+          <div>
+            <p className="font-mono text-xs uppercase tracking-[0.24em] text-emerald-200/70">
+              how it works
+            </p>
+            <h2 className="chrome-text mt-3 font-display text-2xl font-semibold sm:text-4xl lg:text-5xl">
+              One bounty. Agent-run security loop.
+            </h2>
+            <p className="mt-4 max-w-2xl text-sm leading-6 text-white/56">
+              Final user funds bounty tiers once. Somnia agents handle repo reading, vulnerability
+              classification, second review, PR evidence, final verification, and payout gate.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-4 pb-8 sm:pb-10 lg:mt-8 lg:grid-cols-[16rem_1fr]">
+          <div className="rounded-[1.2rem] holo-card border border-white/8 p-4">
+            <p className="font-mono text-[0.68rem] uppercase tracking-[0.18em] text-white/42">
+              automation map
+            </p>
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:mt-5 lg:block lg:space-y-4">
+              {["User", "Somnia Agents", "Backend", "Smart Contract"].map((actor, index) => (
+                <motion.div
+                  key={actor}
+                  className="flex min-w-0 items-center gap-3"
+                  initial={{ x: -12, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  transition={{ delay: index * 0.08 }}
+                >
+                  <span className="grid h-8 w-8 place-items-center rounded-full border border-emerald-200/20 bg-emerald-300/10 font-mono text-xs text-emerald-100">
+                    {index + 1}
+                  </span>
+                  <span className="text-sm text-white/68">{actor}</span>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+
+          <div className="relative grid overflow-hidden rounded-[1.2rem] border border-white/8 bg-white/[0.025]">
+            <div className="grid h-full w-full gap-3 p-4 md:grid-cols-2 md:auto-rows-fr">
+              {steps.map((step, index) => (
+                <motion.div
+                  key={step.label}
+                  className="grid h-full content-start gap-3 rounded-xl border border-white/8 bg-black/18 p-4"
+                  initial={{ y: 14, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.12 + index * 0.07 }}
+                >
+                  <div className="flex items-center gap-2">
+                    <motion.span
+                      className={`grid h-8 w-8 shrink-0 place-items-center rounded-full border font-mono text-[0.68rem] ${step.tone}`}
+                      animate={{ boxShadow: ["0 0 0 rgba(52,211,153,0)", "0 0 22px rgba(52,211,153,0.2)", "0 0 0 rgba(52,211,153,0)"] }}
+                      transition={{ duration: 2.2, delay: index * 0.15, repeat: Infinity }}
+                    >
+                      {index + 1}
+                    </motion.span>
+                    <span className="font-mono text-[0.65rem] uppercase tracking-[0.18em] text-white/42">
+                      {step.label}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="font-display text-base font-semibold text-white sm:text-lg">
+                      {step.title}
+                    </p>
+                    <p className="mt-1 text-sm leading-6 text-white/58">{step.body}</p>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -738,18 +1158,21 @@ function ProjectPickerModal({
 }) {
   return (
     <motion.div
-      className="fixed inset-0 z-40 grid place-items-center bg-black/70 px-4 backdrop-blur-xl"
+      className="fixed inset-0 z-40 grid place-items-center overflow-y-auto bg-black/70 px-4 py-6 backdrop-blur-xl"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
     >
       <motion.div
-        className="w-full max-w-3xl rounded-[1.5rem] border border-white/10 bg-[#07110f] p-5 shadow-[0_28px_90px_rgba(0,0,0,0.4)]"
+        className="holo-panel relative w-full max-w-3xl rounded-[1.5rem] border border-white/10 p-5"
         initial={{ y: 24, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 20, opacity: 0 }}
       >
-        <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="absolute right-5 top-5 z-10">
+          <ModalCloseButton onClick={close} />
+        </div>
+        <div className="pr-12">
           <div>
             <p className="font-mono text-xs uppercase tracking-[0.22em] text-emerald-100/70">
               wallet projects
@@ -758,13 +1181,6 @@ function ProjectPickerModal({
               Select Project
             </h2>
           </div>
-          <button
-            type="button"
-            onClick={close}
-            className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-white/72 transition hover:bg-white/[0.08]"
-          >
-            Return to Dashboard
-          </button>
         </div>
 
         <div className="mt-5 grid gap-3">
@@ -775,7 +1191,7 @@ function ProjectPickerModal({
                   key={project.id}
                   type="button"
                   onClick={() => onSelect(project.numericProjectId)}
-                  className="grid gap-3 rounded-xl border border-white/8 bg-white/[0.035] p-4 text-left transition hover:border-emerald-200/24 hover:bg-emerald-300/8 md:grid-cols-[7rem_1fr_auto]"
+                  className="grid gap-3 rounded-xl holo-card border border-white/8 p-4 text-left transition hover:border-emerald-200/24 hover:bg-emerald-300/8 md:grid-cols-[7rem_1fr_auto]"
                 >
                   <p className="font-mono text-xs text-emerald-100">{project.id}</p>
                   <div className="min-w-0">
@@ -793,12 +1209,12 @@ function ProjectPickerModal({
                 </button>
               ))
             ) : (
-              <p className="rounded-xl border border-white/8 bg-white/[0.035] p-5 text-sm text-white/52">
+              <p className="rounded-xl holo-card border border-white/8 p-5 text-sm text-white/52">
                 No projects registered by connected wallet.
               </p>
             )
           ) : (
-            <p className="rounded-xl border border-white/8 bg-white/[0.035] p-5 text-sm text-white/52">
+            <p className="rounded-xl holo-card border border-white/8 p-5 text-sm text-white/52">
               Connect wallet to see projects created by your address.
             </p>
           )}
@@ -832,19 +1248,22 @@ function BountyModal({
 
   return (
     <motion.div
-      className="fixed inset-0 z-40 grid place-items-center bg-black/70 px-4 backdrop-blur-xl"
+      className="fixed inset-0 z-40 grid place-items-center overflow-y-auto bg-black/70 px-4 py-6 backdrop-blur-xl"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
     >
       <motion.form
         onSubmit={form.handleSubmit(onSubmit)}
-        className="w-full max-w-xl rounded-[1.5rem] border border-white/10 bg-[#07110f] p-5 shadow-[0_28px_90px_rgba(0,0,0,0.4)]"
+        className="holo-panel relative w-full max-w-xl rounded-[1.5rem] border border-white/10 p-5"
         initial={{ y: 24, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 20, opacity: 0 }}
       >
-        <div className="flex items-start justify-between gap-4">
+        <div className="absolute right-5 top-5 z-10">
+          <ModalCloseButton onClick={close} />
+        </div>
+        <div className="pr-12">
           <div>
             <p className="font-mono text-xs uppercase tracking-[0.22em] text-emerald-100/70">
               bounty tiers
@@ -853,13 +1272,6 @@ function BountyModal({
               {project ? project.name : "No project selected"}
             </h2>
           </div>
-          <button
-            type="button"
-            onClick={close}
-            className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/[0.04] text-white/70"
-          >
-            x
-          </button>
         </div>
 
         <div className="mt-6 grid gap-4">
@@ -877,7 +1289,7 @@ function BountyModal({
                 type="number"
                 step="0.001"
                 {...form.register(name as keyof BountyValues)}
-                className="mt-2 w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none focus:border-emerald-200/45"
+                className="focus-neon mt-2 w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none transition"
               />
               <FieldError message={form.formState.errors[name as keyof BountyValues]?.message} />
             </label>
@@ -905,6 +1317,7 @@ export function SecurityConsole() {
   const [registerOpen, setRegisterOpen] = useState(false);
   const [bountyOpen, setBountyOpen] = useState(false);
   const [projectPickerOpen, setProjectPickerOpen] = useState(false);
+  const [howItWorksOpen, setHowItWorksOpen] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<bigint | null>(null);
   const bootedAccount = useRef<string | null>(null);
   const bootTimers = useRef<number[]>([]);
@@ -1040,6 +1453,8 @@ export function SecurityConsole() {
     <main className="noise scanlines relative min-h-[100dvh] overflow-hidden bg-[#030706] text-foreground">
       <AnimatePresence>{showingLoader ? <MatrixLoader /> : null}</AnimatePresence>
       <div className="aurora" aria-hidden="true" />
+      <div className="starfield" aria-hidden="true" />
+      <div className="grid-floor" aria-hidden="true" />
 
       {!wallet.account ? (
         <AnimatePresence>
@@ -1067,14 +1482,23 @@ export function SecurityConsole() {
           <ShellNav
             activeView={activeView}
             setActiveView={setActiveView}
+            onHowItWorks={() => {
+              setError("");
+              setRegisterOpen(false);
+              setBountyOpen(false);
+              setProjectPickerOpen(false);
+              setHowItWorksOpen(true);
+            }}
             onRegister={() => {
               setError("");
+              setHowItWorksOpen(false);
               setBountyOpen(false);
               setProjectPickerOpen(false);
               setRegisterOpen(true);
             }}
             onBounty={() => {
               setError("");
+              setHowItWorksOpen(false);
               setRegisterOpen(false);
               setProjectPickerOpen(false);
               setBountyOpen(true);
@@ -1110,13 +1534,21 @@ export function SecurityConsole() {
               paidBounties={bounty.paidBounties}
               onProjectsClick={() => {
                 setError("");
+                setHowItWorksOpen(false);
                 setRegisterOpen(false);
                 setBountyOpen(false);
                 setProjectPickerOpen(true);
               }}
             />
-          ) : (
+          ) : activeView === "logs" ? (
             <LogsView logs={bounty.agentLogs} />
+          ) : (
+            <PaidHistoryView
+              paidBounties={bounty.paidBounties}
+              contractAddress={bounty.contractAddress}
+              explorerBase={bounty.explorerBase}
+              status={bounty.status}
+            />
           )}
         </div>
       ) : null}
@@ -1134,6 +1566,14 @@ export function SecurityConsole() {
             onClose={() => {
               setError("");
               setRegisterOpen(false);
+            }}
+          />
+        ) : null}
+        {howItWorksOpen ? (
+          <HowItWorksModal
+            close={() => {
+              setError("");
+              setHowItWorksOpen(false);
             }}
           />
         ) : null}
