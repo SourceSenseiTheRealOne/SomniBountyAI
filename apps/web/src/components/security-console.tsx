@@ -485,16 +485,30 @@ function Overview({
   const selectedJobs = selectedProjectId
     ? scanJobs.filter((job) => job.projectId === selectedProjectId)
     : scanJobs;
+  const selectedIncidents = selectedProjectId
+    ? incidents.filter((incident) =>
+        selectedJobs.some((job) => job.incidentId === incident.numericIncidentId),
+      )
+    : incidents;
   const selectedLogs = selectedProjectId
     ? agentLogs.filter((log) => log.projectId === selectedProjectId)
     : agentLogs;
+  const selectedPaidBounties = selectedProjectId
+    ? paidBounties.filter((bounty) => bounty.projectId === selectedProjectId)
+    : paidBounties;
   const selectedPaidCount = selectedProjectId
-    ? paidBounties.filter((bounty) => bounty.projectId === selectedProjectId).length
+    ? selectedPaidBounties.length
     : paidBounties.length;
   const hasFundedTiers = tierValues.critical + tierValues.high + tierValues.medium > 0n;
   const hasStep = (needle: string) =>
     selectedLogs.some((log) => log.step.toLowerCase().includes(needle));
   const hasAnyLog = (...needles: string[]) => needles.some((needle) => hasStep(needle));
+  const hasCandidate = selectedJobs.some((job) => job.status === "Candidate Found" || job.incidentId > 0n);
+  const hasFix = selectedJobs.some((job) => job.fixId > 0n) || selectedPaidCount > 0;
+  const hasVerifier =
+    selectedPaidCount > 0 ||
+    selectedIncidents.some((incident) => incident.status === "Fix Validated") ||
+    hasAnyLog("somnia verifier result", "fix verified", "bounty paid");
   const flowSteps = [
     { label: "Register Project", complete: Boolean(selectedProject), active: !selectedProject },
     {
@@ -504,23 +518,23 @@ function Overview({
     },
     {
       label: "Somnia Scan",
-      complete: hasAnyLog("vulnerability candidate", "scan completed", "scan needs review"),
+      complete: hasCandidate || hasAnyLog("candidate found", "vulnerability candidate", "scan completed", "scan needs review"),
       active: selectedJobs.some((job) => job.status === "Pending"),
     },
     {
       label: "Second Agent Review",
-      complete: hasAnyLog("candidate validated", "second review result"),
-      active: hasAnyLog("second agent review started"),
+      complete: hasCandidate || hasAnyLog("candidate validated", "second review result"),
+      active: hasAnyLog("second agent review started", "review requested"),
     },
     {
       label: "Backend PR",
-      complete: hasAnyLog("pr created"),
+      complete: hasFix || hasAnyLog("pr created"),
       active: hasAnyLog("pr requested"),
     },
     {
       label: "Verifier Callback",
-      complete: hasAnyLog("somnia verifier result"),
-      active: hasAnyLog("final verifier requested"),
+      complete: hasVerifier,
+      active: hasAnyLog("final verifier requested", "final requested"),
     },
     {
       label: "Bounty Paid",

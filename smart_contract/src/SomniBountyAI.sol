@@ -561,7 +561,10 @@ contract SomniBountyAI is IAgentRequesterHandler {
         if (!project.active || job.projectId != projectId) revert InvalidProject();
 
         string memory prompt = string.concat(
-            "Scan repo. Output CRITICAL,HIGH,MEDIUM,NONE,NEEDS_REVIEW. Registry:",
+            "Scan Solidity evidence. Output CRITICAL,HIGH,MEDIUM,NONE,NEEDS_REVIEW. ",
+            "Use registry templates. Severity guide: reentrancy draining funds, missing access control on public fund/admin action, oracle drain = CRITICAL; ",
+            "tx.origin authorization, signature replay, unchecked call, admin/upgrade risk = HIGH; unsafe token transfer, DoS, rounding = MEDIUM. ",
+            "If evidence shows require(tx.origin == owner), classify HIGH unless no privileged action exists. Registry:",
             vulnerabilityRegistry.agentTemplatePack(),
             " Snapshot:",
             job.snapshotURI,
@@ -615,11 +618,15 @@ contract SomniBountyAI is IAgentRequesterHandler {
         if (!project.active || job.projectId == 0) revert InvalidProject();
 
         string memory prompt = string.concat(
-            "Review finding. Output VALID,INVALID,NEEDS_REVIEW. Registry:",
-            vulnerabilityRegistry.agentTemplatePack(),
-            " Severity:",
+            "Validate candidate Solidity vulnerability. Output only VALID, INVALID, or NEEDS_REVIEW. ",
+            "Candidate severity: ",
             _severityName(SeverityTier(job.candidateSeverity)),
-            " Snapshot:",
+            ". Evidence: ",
+            job.snapshotURI,
+            ". Decision rules: VALID if evidence contains require(tx.origin == owner) in withdraw/admin/fund movement code; ",
+            "VALID if privileged action uses tx.origin for authorization; ",
+            "INVALID only if no vulnerable code pattern appears; NEEDS_REVIEW only if evidence is too incomplete. ",
+            "Do not reject because severity could be HIGH instead of CRITICAL. Evidence text: ",
             job.snapshotURI
         );
         string[] memory allowedValues = new string[](3);

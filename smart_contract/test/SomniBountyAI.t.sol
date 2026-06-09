@@ -201,6 +201,24 @@ contract SomniBountyAITest {
         require(bytes4(payload) == IJsonApiAgent.fetchString.selector, "wrong json selector");
     }
 
+    function testSecondReviewPromptValidatesTxOriginEvidence() public {
+        (, uint256 requestId) = _fundAndRequestScan();
+
+        platform.fulfillString(
+            requestId,
+            ResponseStatus.Success,
+            "file=src/VulnerableVault.sol evidence=require(tx.origin == owner) around withdraw"
+        );
+        platform.fulfillString(2, ResponseStatus.Success, "HIGH");
+
+        bytes memory payload = escrow.buildSecondReviewPayload(1);
+        require(bytes4(payload) == ILLMAgent.inferString.selector, "wrong llm selector");
+        (string memory prompt,,,) =
+            abi.decode(_withoutSelector(payload), (string, string, bool, string[]));
+        require(_contains(prompt, "require(tx.origin == owner)"), "missing tx.origin rule");
+        require(_contains(prompt, "severity could be HIGH instead of CRITICAL"), "missing severity rule");
+    }
+
     function testScanCallbackRejectsSpoofedPlatform() public {
         (, uint256 requestId) = _fundAndRequestScan();
 
@@ -495,5 +513,31 @@ contract SomniBountyAITest {
             callbackSelector: bytes4(0),
             payload: ""
         });
+    }
+
+    function _withoutSelector(bytes memory payload) internal pure returns (bytes memory result) {
+        result = new bytes(payload.length - 4);
+        for (uint256 i; i < result.length; i++) {
+            result[i] = payload[i + 4];
+        }
+    }
+
+    function _contains(string memory haystack, string memory needle) internal pure returns (bool) {
+        bytes memory haystackBytes = bytes(haystack);
+        bytes memory needleBytes = bytes(needle);
+        if (needleBytes.length == 0 || needleBytes.length > haystackBytes.length) {
+            return false;
+        }
+        for (uint256 i; i <= haystackBytes.length - needleBytes.length; i++) {
+            bool matched = true;
+            for (uint256 j; j < needleBytes.length; j++) {
+                if (haystackBytes[i + j] != needleBytes[j]) {
+                    matched = false;
+                    break;
+                }
+            }
+            if (matched) return true;
+        }
+        return false;
     }
 }
