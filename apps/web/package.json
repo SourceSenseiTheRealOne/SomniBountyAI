@@ -9,6 +9,7 @@
     "lint": "eslint",
     "diagnose:live": "node scripts/diagnose-live-flow.mjs",
     "flow:live": "node scripts/run-live-user-flow.mjs",
+    "smoke:raw-agent": "node scripts/smoke-raw-agent.mjs",
     "smoke:json-agent": "node scripts/deploy-agent-json-smoke.mjs",
     "smoke:agent": "node scripts/smoke-snapshot-agent.mjs"
   },
