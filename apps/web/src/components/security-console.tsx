@@ -1022,7 +1022,7 @@ export function SecurityConsole() {
         <RegistrationView
           walletStatus={wallet.status}
           connectedAccount={wallet.account}
-          connect={wallet.connect}
+          connect={connectWallet}
           onSubmit={registerProject}
           pending={pending}
           error={error}
@@ -1094,7 +1094,7 @@ export function SecurityConsole() {
             variant="modal"
             walletStatus={wallet.status}
             connectedAccount={wallet.account}
-            connect={wallet.connect}
+            connect={connectWallet}
             onSubmit={registerProject}
             pending={pending}
             error={error}

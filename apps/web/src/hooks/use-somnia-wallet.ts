@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createWalletClient, custom, type Address, type EIP1193Provider, type WalletClient } from "viem";
 import { somniaTestnet } from "@/lib/somnia";
 
@@ -27,8 +27,8 @@ function getInjectedProvider() {
   const providers = Array.isArray(provider.providers) ? provider.providers : [];
   return (
     providers.find((candidate) => candidate.isRabby) ??
+    providers.find((candidate) => candidate.isMetaMask) ??
     providers.find((candidate) => candidate.isOkxWallet) ??
-    providers.find((candidate) => !candidate.isMetaMask) ??
     provider
   );
 }
@@ -54,6 +54,34 @@ export function useSomniaWallet() {
       transport: custom(provider),
     });
   }, [account]);
+
+  const syncConnectedAccount = useCallback(async () => {
+    const provider = getInjectedProvider();
+    if (!provider) {
+      setAccount(null);
+      setStatus("No injected wallet found");
+      return null;
+    }
+
+    try {
+      const accounts = (await provider.request({ method: "eth_accounts" })) as Address[];
+      const connected = accounts[0] ?? null;
+      const chainId = (await provider.request({ method: "eth_chainId" })) as string;
+
+      setAccount(connected);
+      if (!connected) {
+        setStatus("Wallet disconnected");
+        return null;
+      }
+
+      setStatus(chainId === somniaChainHex ? "Connected to Somnia" : "Switch to Somnia Testnet");
+      return connected;
+    } catch (error) {
+      setAccount(null);
+      setStatus(errorMessage(error));
+      return null;
+    }
+  }, []);
 
   const connect = useCallback(async () => {
     const provider = getInjectedProvider();
@@ -110,6 +138,41 @@ export function useSomniaWallet() {
       }
     }
   }, []);
+
+  useEffect(() => {
+    const provider = getInjectedProvider();
+    if (!provider) return;
+
+    const syncTimer = window.setTimeout(() => {
+      void syncConnectedAccount();
+    }, 0);
+
+    const handleAccountsChanged = (accounts: unknown) => {
+      const nextAccount = Array.isArray(accounts) ? (accounts[0] as Address | undefined) : undefined;
+      setAccount(nextAccount ?? null);
+      setStatus(nextAccount ? "Connected to Somnia" : "Wallet disconnected");
+    };
+
+    const handleChainChanged = (chainId: unknown) => {
+      setStatus(chainId === somniaChainHex ? "Connected to Somnia" : "Switch to Somnia Testnet");
+    };
+
+    const handleDisconnect = () => {
+      setAccount(null);
+      setStatus("Wallet disconnected");
+    };
+
+    provider.on?.("accountsChanged", handleAccountsChanged);
+    provider.on?.("chainChanged", handleChainChanged);
+    provider.on?.("disconnect", handleDisconnect);
+
+    return () => {
+      window.clearTimeout(syncTimer);
+      provider.removeListener?.("accountsChanged", handleAccountsChanged);
+      provider.removeListener?.("chainChanged", handleChainChanged);
+      provider.removeListener?.("disconnect", handleDisconnect);
+    };
+  }, [syncConnectedAccount]);
 
   return {
     account,
