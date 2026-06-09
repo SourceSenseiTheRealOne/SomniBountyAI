@@ -148,6 +148,12 @@ const configuredAddress = process.env.NEXT_PUBLIC_SOMNIBOUNTY_ADDRESS;
 const rpcUrl =
   process.env.NEXT_PUBLIC_SOMNIA_RPC_URL ?? "https://api.infra.testnet.somnia.network/";
 
+type RuntimeConfig = {
+  somniaRpcUrl?: string;
+  somniBountyAddress?: string;
+  vulnerabilityRegistryAddress?: string;
+};
+
 function isAddress(value: string | undefined): value is Address {
   return /^0x[a-fA-F0-9]{40}$/.test(value ?? "");
 }
@@ -289,10 +295,13 @@ function statusFromStep(step: string): UiAgentLog["status"] {
 }
 
 export function useSomniBounty(walletClient: WalletClient | null, account: Address | null) {
-  const contractAddress = isAddress(configuredAddress) ? configuredAddress : null;
+  const [runtimeConfig, setRuntimeConfig] = useState<RuntimeConfig | null>(null);
+  const activeContractAddress = runtimeConfig?.somniBountyAddress || configuredAddress;
+  const activeRpcUrl = runtimeConfig?.somniaRpcUrl || rpcUrl;
+  const contractAddress = isAddress(activeContractAddress) ? activeContractAddress : null;
   const publicClient = useMemo(
-    () => createPublicClient({ chain: somniaTestnet, transport: http(rpcUrl) }),
-    [],
+    () => createPublicClient({ chain: somniaTestnet, transport: http(activeRpcUrl) }),
+    [activeRpcUrl],
   );
   const [projects, setProjects] = useState<UiProject[]>([]);
   const [scanJobs, setScanJobs] = useState<UiScanJob[]>([]);
@@ -305,6 +314,25 @@ export function useSomniBounty(walletClient: WalletClient | null, account: Addre
       : "Live mode unavailable: no contract address configured",
   );
   const [lastTx, setLastTx] = useState<Hex | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadRuntimeConfig() {
+      try {
+        const response = await fetch("/api/config", { cache: "no-store" });
+        if (!response.ok) return;
+        const data = (await response.json()) as RuntimeConfig;
+        if (!cancelled) setRuntimeConfig(data);
+      } catch {
+        // Build-time public env fallback remains available.
+      }
+    }
+
+    void loadRuntimeConfig();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const refresh = useCallback(async () => {
     if (!contractAddress) return;
