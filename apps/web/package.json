@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "diagnose:live": "node scripts/diagnose-live-flow.mjs",
+    "flow:live": "node scripts/run-live-user-flow.mjs",
+    "smoke:json-agent": "node scripts/deploy-agent-json-smoke.mjs",
+    "smoke:agent": "node scripts/smoke-snapshot-agent.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",

@@ -112,6 +112,7 @@ type ContractScanJob = {
   incidentId: bigint;
   fixId: bigint;
   agentFeeReserve: bigint;
+  latestRequestId: bigint;
   candidateSeverity: number;
   snapshotURI: string;
   resultHash: Hex;

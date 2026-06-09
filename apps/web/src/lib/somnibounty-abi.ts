@@ -99,6 +99,7 @@ export const somniBountyAbi = [
           { name: "incidentId", type: "uint256" },
           { name: "fixId", type: "uint256" },
           { name: "agentFeeReserve", type: "uint256" },
+          { name: "latestRequestId", type: "uint256" },
           { name: "candidateSeverity", type: "uint8" },
           { name: "snapshotURI", type: "string" },
           { name: "resultHash", type: "bytes32" },
@@ -206,6 +207,13 @@ export const somniBountyAbi = [
       { name: "proofHash", type: "bytes32" },
     ],
     outputs: [{ name: "fixId", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "retrySnapshot",
+    stateMutability: "payable",
+    inputs: [{ name: "scanJobId", type: "uint256" }],
+    outputs: [{ name: "requestId", type: "uint256" }],
   },
   {
     type: "function",

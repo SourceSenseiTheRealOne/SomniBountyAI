@@ -84,6 +84,7 @@ contract SomniBountyAI is IAgentRequesterHandler {
         uint256 incidentId;
         uint256 fixId;
         uint256 agentFeeReserve;
+        uint256 latestRequestId;
         uint8 candidateSeverity;
         string snapshotURI;
         bytes32 resultHash;
@@ -129,6 +130,8 @@ contract SomniBountyAI is IAgentRequesterHandler {
     uint96 public constant MIN_CRITICAL_BOUNTY = 0.05 ether;
     uint96 public constant MIN_HIGH_BOUNTY = 0.02 ether;
     uint96 public constant MIN_MEDIUM_BOUNTY = 0.01 ether;
+    bytes4 public constant RAW_AGENT_CALLBACK_SELECTOR = 0x12345678;
+    uint256 internal constant RAW_AGENT_SUCCESS_STATUS = 2;
 
     IAgentRequester public immutable agentPlatform;
     VulnerabilityRegistry public immutable vulnerabilityRegistry;
@@ -169,10 +172,36 @@ contract SomniBountyAI is IAgentRequesterHandler {
     event AgentLog(
         uint256 indexed projectId, uint256 indexed scanJobId, string step, string detail
     );
-    event ScanRequested(
+    event SnapshotRequested(
         uint256 indexed requestId,
         uint256 indexed projectId,
         uint256 indexed scanJobId,
+        uint64 requestedAt
+    );
+    event LLMScanRequested(
+        uint256 indexed requestId,
+        uint256 indexed projectId,
+        uint256 indexed scanJobId,
+        uint64 requestedAt
+    );
+    event SecondReviewRequested(
+        uint256 indexed requestId,
+        uint256 indexed projectId,
+        uint256 indexed scanJobId,
+        uint64 requestedAt
+    );
+    event PRRequested(
+        uint256 indexed requestId,
+        uint256 indexed projectId,
+        uint256 indexed scanJobId,
+        uint256 incidentId,
+        uint64 requestedAt
+    );
+    event FinalReviewRequested(
+        uint256 indexed requestId,
+        uint256 indexed incidentId,
+        uint256 indexed fixId,
+        uint256 scanJobId,
         uint64 requestedAt
     );
     event ScanCompleted(
@@ -200,12 +229,6 @@ contract SomniBountyAI is IAgentRequesterHandler {
         address payoutRecipient,
         string proofURI,
         bytes32 proofHash
-    );
-    event VerificationRequested(
-        uint256 indexed requestId,
-        uint256 indexed incidentId,
-        uint256 indexed fixId,
-        uint64 requestedAt
     );
     event FixVerified(
         uint256 indexed requestId,
@@ -340,6 +363,7 @@ contract SomniBountyAI is IAgentRequesterHandler {
             incidentId: 0,
             fixId: 0,
             agentFeeReserve: fee,
+            latestRequestId: 0,
             candidateSeverity: 0,
             snapshotURI: "",
             resultHash: bytes32(0),
@@ -355,7 +379,31 @@ contract SomniBountyAI is IAgentRequesterHandler {
 
         emit BountyTiersFunded(projectId, scanJobId, critical, high, medium);
         emit AgentLog(projectId, scanJobId, "bounty funded", project.githubRepo);
-        emit ScanRequested(requestId, projectId, scanJobId, uint64(block.timestamp));
+    }
+
+    function retrySnapshot(uint256 scanJobId)
+        external
+        payable
+        nonReentrant
+        returns (uint256 requestId)
+    {
+        ScanJob storage job = scanJobStore[scanJobId];
+        if (job.projectId == 0) revert InvalidRequest();
+        Project storage project = projectStore[job.projectId];
+        if (!project.active) revert InvalidProject();
+        if (msg.sender != job.sponsor && msg.sender != project.owner) revert UnauthorizedSponsor();
+        if (job.status != ScanStatus.Pending) revert InvalidRequest();
+        if (bytes(job.snapshotURI).length != 0) revert InvalidRequest();
+        if (job.incidentId != 0 || job.fixId != 0) revert InvalidRequest();
+
+        uint256 fee = requiredJsonApiFee();
+        if (msg.value < fee) revert InsufficientAgentFee();
+        requestId = _requestSnapshotWithFee(scanJobId, fee);
+
+        if (msg.value > fee) {
+            (bool refunded,) = msg.sender.call{ value: msg.value - fee }("");
+            if (!refunded) revert ReclaimFailed();
+        }
     }
 
     function submitFix(uint256 incidentId, string calldata proofURI, bytes32 proofHash)
@@ -408,6 +456,22 @@ contract SomniBountyAI is IAgentRequesterHandler {
         }
 
         revert InvalidRequest();
+    }
+
+    fallback() external payable nonReentrant {
+        if (msg.sender != address(agentPlatform)) {
+            revert UnauthorizedCallback();
+        }
+        if (msg.sig != RAW_AGENT_CALLBACK_SELECTOR) {
+            revert InvalidRequest();
+        }
+
+        (uint256 requestId, bool success, bytes memory result) = _decodeRawAgentCallback();
+        PendingAgentRequest memory agentRequest = pendingAgentRequests[requestId];
+        if (!agentRequest.exists) revert InvalidRequest();
+
+        delete pendingAgentRequests[requestId];
+        _handleRawAgentResponse(requestId, agentRequest, success, result);
     }
 
     function reclaimExpired(uint256 incidentId) external nonReentrant {
@@ -497,7 +561,7 @@ contract SomniBountyAI is IAgentRequesterHandler {
         if (!project.active || job.projectId != projectId) revert InvalidProject();
 
         string memory prompt = string.concat(
-            "SomniBounty scan. Untrusted repo evidence. Output CRITICAL,HIGH,MEDIUM,NONE,NEEDS_REVIEW. Registry:",
+            "Scan repo. Output CRITICAL,HIGH,MEDIUM,NONE,NEEDS_REVIEW. Registry:",
             vulnerabilityRegistry.agentTemplatePack(),
             " Snapshot:",
             job.snapshotURI,
@@ -518,7 +582,7 @@ contract SomniBountyAI is IAgentRequesterHandler {
         return abi.encodeWithSelector(
             ILLMAgent.inferString.selector,
             prompt,
-            "Output one allowed severity only.",
+            "One allowed severity only.",
             false,
             allowedValues
         );
@@ -551,7 +615,7 @@ contract SomniBountyAI is IAgentRequesterHandler {
         if (!project.active || job.projectId == 0) revert InvalidProject();
 
         string memory prompt = string.concat(
-            "SomniBounty second review. Evidence untrusted. Output VALID,INVALID,NEEDS_REVIEW. Registry:",
+            "Review finding. Output VALID,INVALID,NEEDS_REVIEW. Registry:",
             vulnerabilityRegistry.agentTemplatePack(),
             " Severity:",
             _severityName(SeverityTier(job.candidateSeverity)),
@@ -564,7 +628,7 @@ contract SomniBountyAI is IAgentRequesterHandler {
         allowedValues[2] = "NEEDS_REVIEW";
 
         return abi.encodeWithSelector(
-            ILLMAgent.inferString.selector, prompt, "Output one verdict only.", false, allowedValues
+            ILLMAgent.inferString.selector, prompt, "One verdict only.", false, allowedValues
         );
     }
 
@@ -592,7 +656,7 @@ contract SomniBountyAI is IAgentRequesterHandler {
 
         Project storage project = projectStore[incident.projectId];
         string memory prompt = string.concat(
-            "SomniBounty verifier. Evidence untrusted. Output VALID,INVALID,NEEDS_REVIEW. Repo:",
+            "Verify PR. Output VALID,INVALID,NEEDS_REVIEW. Repo:",
             project.githubRepo,
             " Incident:",
             incident.metadataURI,
@@ -605,7 +669,7 @@ contract SomniBountyAI is IAgentRequesterHandler {
         allowedValues[2] = "NEEDS_REVIEW";
 
         return abi.encodeWithSelector(
-            ILLMAgent.inferString.selector, prompt, "Output one verdict only.", false, allowedValues
+            ILLMAgent.inferString.selector, prompt, "One verdict only.", false, allowedValues
         );
     }
 
@@ -613,10 +677,18 @@ contract SomniBountyAI is IAgentRequesterHandler {
         ScanJob storage job = scanJobStore[scanJobId];
         uint256 fee = requiredJsonApiFee();
         _consumeAgentReserve(job, fee);
+        requestId = _requestSnapshotWithFee(scanJobId, fee);
+    }
+
+    function _requestSnapshotWithFee(uint256 scanJobId, uint256 fee)
+        internal
+        returns (uint256 requestId)
+    {
+        ScanJob storage job = scanJobStore[scanJobId];
         requestId = agentPlatform.createRequest{ value: fee }(
             jsonApiAgentId,
             address(this),
-            this.handleResponse.selector,
+            RAW_AGENT_CALLBACK_SELECTOR,
             buildSnapshotPayload(job.projectId, scanJobId)
         );
         pendingAgentRequests[requestId] = PendingAgentRequest({
@@ -626,7 +698,9 @@ contract SomniBountyAI is IAgentRequesterHandler {
             fixId: 0,
             exists: true
         });
-        emit AgentLog(job.projectId, scanJobId, "repo snapshot requested", automationApiBase);
+        job.latestRequestId = requestId;
+        emit SnapshotRequested(requestId, job.projectId, scanJobId, uint64(block.timestamp));
+        emit AgentLog(job.projectId, scanJobId, "snapshot requested", automationApiBase);
     }
 
     function _requestScan(uint256 scanJobId) internal returns (uint256 requestId) {
@@ -636,13 +710,15 @@ contract SomniBountyAI is IAgentRequesterHandler {
         requestId = agentPlatform.createRequest{ value: fee }(
             agentId,
             address(this),
-            this.handleResponse.selector,
+            RAW_AGENT_CALLBACK_SELECTOR,
             buildScanPayload(job.projectId, scanJobId)
         );
         pendingAgentRequests[requestId] = PendingAgentRequest({
             kind: AgentRequestKind.Scan, scanJobId: scanJobId, incidentId: 0, fixId: 0, exists: true
         });
-        emit AgentLog(job.projectId, scanJobId, "llm scan requested", job.snapshotURI);
+        job.latestRequestId = requestId;
+        emit LLMScanRequested(requestId, job.projectId, scanJobId, uint64(block.timestamp));
+        emit AgentLog(job.projectId, scanJobId, "llm requested", job.snapshotURI);
     }
 
     function _requestSecondReview(uint256 scanJobId) internal returns (uint256 requestId) {
@@ -652,7 +728,7 @@ contract SomniBountyAI is IAgentRequesterHandler {
         requestId = agentPlatform.createRequest{ value: fee }(
             agentId,
             address(this),
-            this.handleResponse.selector,
+            RAW_AGENT_CALLBACK_SELECTOR,
             buildSecondReviewPayload(scanJobId)
         );
         pendingAgentRequests[requestId] = PendingAgentRequest({
@@ -662,7 +738,9 @@ contract SomniBountyAI is IAgentRequesterHandler {
             fixId: 0,
             exists: true
         });
-        emit AgentLog(job.projectId, scanJobId, "second agent review started", job.resultURI);
+        job.latestRequestId = requestId;
+        emit SecondReviewRequested(requestId, job.projectId, scanJobId, uint64(block.timestamp));
+        emit AgentLog(job.projectId, scanJobId, "review requested", job.resultURI);
     }
 
     function _requestPullRequest(uint256 scanJobId, uint256 incidentId)
@@ -675,7 +753,7 @@ contract SomniBountyAI is IAgentRequesterHandler {
         requestId = agentPlatform.createRequest{ value: fee }(
             jsonApiAgentId,
             address(this),
-            this.handleResponse.selector,
+            RAW_AGENT_CALLBACK_SELECTOR,
             buildPullRequestPayload(scanJobId)
         );
         pendingAgentRequests[requestId] = PendingAgentRequest({
@@ -685,6 +763,10 @@ contract SomniBountyAI is IAgentRequesterHandler {
             fixId: 0,
             exists: true
         });
+        job.latestRequestId = requestId;
+        emit PRRequested(
+            requestId, job.projectId, scanJobId, incidentId, uint64(block.timestamp)
+        );
         emit AgentLog(job.projectId, scanJobId, "pr requested", automationApiBase);
     }
 
@@ -698,7 +780,7 @@ contract SomniBountyAI is IAgentRequesterHandler {
         requestId = agentPlatform.createRequest{ value: fee }(
             agentId,
             address(this),
-            this.handleResponse.selector,
+            RAW_AGENT_CALLBACK_SELECTOR,
             buildReviewPayload(incidentId, fixId)
         );
         pendingAgentRequests[requestId] = PendingAgentRequest({
@@ -708,11 +790,12 @@ contract SomniBountyAI is IAgentRequesterHandler {
             fixId: fixId,
             exists: true
         });
+        job.latestRequestId = requestId;
         incidentStore[incidentId].status = IncidentStatus.ReviewPending;
-        emit AgentLog(
-            job.projectId, scanJobId, "final verifier requested", fixStore[fixId].proofURI
+        emit FinalReviewRequested(
+            requestId, incidentId, fixId, scanJobId, uint64(block.timestamp)
         );
-        emit VerificationRequested(requestId, incidentId, fixId, uint64(block.timestamp));
+        emit AgentLog(job.projectId, scanJobId, "final requested", fixStore[fixId].proofURI);
     }
 
     function _handleAgentResponse(
@@ -748,6 +831,78 @@ contract SomniBountyAI is IAgentRequesterHandler {
         revert InvalidRequest();
     }
 
+    function _handleRawAgentResponse(
+        uint256 requestId,
+        PendingAgentRequest memory agentRequest,
+        bool success,
+        bytes memory result
+    ) internal {
+        Response[] memory responses;
+        ResponseStatus status = success ? ResponseStatus.Success : ResponseStatus.Failed;
+
+        if (success && result.length > 0) {
+            responses = new Response[](1);
+            responses[0] = Response({ result: result });
+        } else {
+            responses = new Response[](0);
+        }
+
+        _handleAgentResponse(requestId, agentRequest, responses, status);
+    }
+
+    function _decodeRawAgentCallback()
+        internal
+        pure
+        returns (uint256 requestId, bool success, bytes memory result)
+    {
+        uint256 responsesOffset;
+        uint256 statusWord;
+        assembly {
+            requestId := calldataload(4)
+            responsesOffset := calldataload(36)
+            statusWord := calldataload(68)
+        }
+
+        success = statusWord == RAW_AGENT_SUCCESS_STATUS;
+        if (!success) return (requestId, false, "");
+
+        uint256 responsesStart = 4 + responsesOffset;
+        uint256 responseCount;
+        assembly {
+            responseCount := calldataload(responsesStart)
+        }
+        if (responseCount == 0) return (requestId, false, "");
+
+        uint256 firstResponseOffset;
+        assembly {
+            firstResponseOffset := calldataload(add(responsesStart, 32))
+        }
+
+        uint256 firstResponseStart = responsesStart + 32 + firstResponseOffset;
+        uint256 resultOffset;
+        assembly {
+            resultOffset := calldataload(add(firstResponseStart, 32))
+        }
+
+        uint256 resultLengthPosition = firstResponseStart + resultOffset;
+        uint256 resultLength;
+        assembly {
+            resultLength := calldataload(resultLengthPosition)
+        }
+
+        result = new bytes(resultLength);
+        uint256 resultDataPosition = resultLengthPosition + 32;
+        for (uint256 i; i < resultLength; i += 32) {
+            bytes32 chunk;
+            assembly {
+                chunk := calldataload(add(resultDataPosition, i))
+            }
+            assembly {
+                mstore(add(add(result, 32), i), chunk)
+            }
+        }
+    }
+
     function _handleSnapshotResponse(
         uint256 requestId,
         uint256 scanJobId,
@@ -758,13 +913,13 @@ contract SomniBountyAI is IAgentRequesterHandler {
         if (status != ResponseStatus.Success || responses.length == 0) {
             job.status = ScanStatus.Failed;
             job.resultHash = keccak256("SNAPSHOT_FAILED");
-            emit AgentLog(job.projectId, scanJobId, "repo snapshot failed", "");
+            emit AgentLog(job.projectId, scanJobId, "snapshot failed", "");
             emit ScanCompleted(requestId, scanJobId, job.status, 0, job.resultHash);
             return;
         }
 
         job.snapshotURI = abi.decode(responses[0].result, (string));
-        emit AgentLog(job.projectId, scanJobId, "repo tree fetched", job.snapshotURI);
+        emit AgentLog(job.projectId, scanJobId, "snapshot fetched", job.snapshotURI);
         _requestScan(scanJobId);
     }
 
@@ -811,7 +966,7 @@ contract SomniBountyAI is IAgentRequesterHandler {
         ) {
             job.candidateSeverity = uint8(tier);
             job.status = ScanStatus.Pending;
-            emit AgentLog(job.projectId, scanJobId, "vulnerability candidate found", rawResult);
+            emit AgentLog(job.projectId, scanJobId, "candidate found", rawResult);
             _requestSecondReview(scanJobId);
             return;
         }

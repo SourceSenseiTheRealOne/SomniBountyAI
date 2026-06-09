@@ -135,11 +135,46 @@ contract SomniBountyAITest {
         (uint96 critical, uint96 high, uint96 medium) = escrow.projectBountyTiers(projectId);
         require(job.projectId == projectId, "project mismatch");
         require(uint8(job.status) == uint8(SomniBountyAI.ScanStatus.Pending), "not pending");
+        require(job.latestRequestId == requestId, "latest request mismatch");
         require(critical == CRITICAL && high == HIGH && medium == MEDIUM, "tiers mismatch");
         (, uint256 pendingScanJobId,,,) = escrow.pendingAgentRequests(requestId);
         require(pendingScanJobId == scanJobId, "pending mismatch");
         require(platform.requestFees(requestId) == expectedFee, "fee mismatch");
         require(publisher.balance == publisherBalanceBefore - value, "publisher did not pay");
+    }
+
+    function testRetrySnapshotUsesCallerPaidJsonFeeAndStoresLatestRequest() public {
+        uint256 projectId = _registerProject();
+        uint256 value = escrow.quoteSetupBountyTiers(CRITICAL, HIGH, MEDIUM);
+        vm.prank(publisher);
+        (uint256 scanJobId, uint256 firstRequestId) =
+            escrow.setupBountyTiers{ value: value }(projectId, CRITICAL, HIGH, MEDIUM);
+
+        uint256 retryFee = escrow.requiredJsonApiFee();
+        uint256 reserveBefore = escrow.getScanJob(scanJobId).agentFeeReserve;
+        vm.prank(publisher);
+        uint256 retryRequestId = escrow.retrySnapshot{ value: retryFee }(scanJobId);
+
+        SomniBountyAI.ScanJob memory job = escrow.getScanJob(scanJobId);
+        require(retryRequestId != firstRequestId, "same request");
+        require(job.latestRequestId == retryRequestId, "latest retry mismatch");
+        require(job.agentFeeReserve == reserveBefore, "reserve consumed");
+        (, uint256 pendingScanJobId,,,) = escrow.pendingAgentRequests(retryRequestId);
+        require(pendingScanJobId == scanJobId, "retry pending mismatch");
+        require(platform.requestFees(retryRequestId) == retryFee, "retry fee mismatch");
+    }
+
+    function testRetrySnapshotRejectsUnauthorizedCaller() public {
+        uint256 projectId = _registerProject();
+        uint256 value = escrow.quoteSetupBountyTiers(CRITICAL, HIGH, MEDIUM);
+        vm.prank(publisher);
+        (uint256 scanJobId,) =
+            escrow.setupBountyTiers{ value: value }(projectId, CRITICAL, HIGH, MEDIUM);
+
+        uint256 retryFee = escrow.requiredJsonApiFee();
+        vm.prank(fixer);
+        vm.expectRevert(SomniBountyAI.UnauthorizedSponsor.selector);
+        escrow.retrySnapshot{ value: retryFee }(scanJobId);
     }
 
     function testScanPayloadUsesRealLlmInferStringSelector() public {

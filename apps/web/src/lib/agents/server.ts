@@ -36,6 +36,11 @@ export type OnchainScanJob = {
   requestedAt: bigint;
   status: number;
   incidentId: bigint;
+  fixId: bigint;
+  agentFeeReserve: bigint;
+  latestRequestId: bigint;
+  candidateSeverity: number;
+  snapshotURI: string;
   resultHash: `0x${string}`;
   resultURI: string;
 };

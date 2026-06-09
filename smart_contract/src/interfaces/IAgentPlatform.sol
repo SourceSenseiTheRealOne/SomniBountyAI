@@ -49,6 +49,10 @@ interface ILLMAgent {
 }
 
 interface IJsonApiAgent {
+    function fetchUint(string calldata url, string calldata selector, uint8 decimals)
+        external
+        returns (uint256);
+
     function fetchString(string calldata url, string calldata selector)
         external
         returns (string memory);
