@@ -20,16 +20,11 @@ type ProjectIpfsResponse = {
 };
 
 const twitterUrl = "https://twitter.com/";
+const platformPayoutWallet = "0xeE59b12EB683A346b3D8A4CB43d5aFa8AD3303F3" as Address;
 const navItemBase =
   "inline-flex h-11 min-w-32 items-center justify-center rounded-full px-4 text-sm transition";
-const addressSchema = z
-  .string()
-  .trim()
-  .regex(/^0x[a-fA-F0-9]{40}$/, "Enter a valid EVM wallet address");
 
-const registrationSchema = projectMetadataSchema.extend({
-  agentPayoutWallet: addressSchema,
-});
+const registrationSchema = projectMetadataSchema;
 
 const bountySchema = z.object({
   critical: z.coerce
@@ -353,15 +348,8 @@ function RegistrationView({
       socialUrl: "",
       imageUrl: "",
       githubRepo: "",
-      agentPayoutWallet: connectedAccount ?? "",
     },
   });
-
-  useEffect(() => {
-    if (connectedAccount && !form.getValues("agentPayoutWallet")) {
-      form.setValue("agentPayoutWallet", connectedAccount, { shouldValidate: true });
-    }
-  }, [connectedAccount, form]);
 
   const content = (
     <div className="mx-auto w-full max-w-5xl">
@@ -434,14 +422,6 @@ function RegistrationView({
                 className="mt-2 w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none focus:border-emerald-200/45"
               />
               <FieldError message={form.formState.errors.imageUrl?.message} />
-            </label>
-            <label className="block md:col-span-2">
-              <span className="text-sm text-white/72">Agent payout wallet</span>
-              <input
-                {...form.register("agentPayoutWallet")}
-                className="mt-2 w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 font-mono text-sm text-white outline-none focus:border-emerald-200/45"
-              />
-              <FieldError message={form.formState.errors.agentPayoutWallet?.message} />
             </label>
           </div>
 
@@ -982,7 +962,7 @@ export function SecurityConsole() {
         values.imageUrl,
         values.githubRepo,
         hashText(data.metadataJson || data.ipfsUri),
-        values.agentPayoutWallet as Address,
+        platformPayoutWallet,
       );
       setRegisterOpen(false);
     } catch (caught) {

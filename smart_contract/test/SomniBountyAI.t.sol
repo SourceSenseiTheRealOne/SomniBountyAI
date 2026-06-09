@@ -34,6 +34,7 @@ contract SomniBountyAITest {
     address internal publisher = address(0xA11CE);
     address internal fixer = address(0xCAFE);
     address internal agentWallet = address(0xF00D);
+    address internal platformPayoutWallet = 0xeE59b12EB683A346b3D8A4CB43d5aFa8AD3303F3;
 
     MockAgentPlatform internal platform;
     VulnerabilityRegistry internal registry;
@@ -65,6 +66,7 @@ contract SomniBountyAITest {
         require(escrow.jsonApiAgentId() == JSON_AGENT_ID, "json agent mismatch");
         require(escrow.jsonApiFeePerValidator() == JSON_PRICE_PER_VALIDATOR, "json fee mismatch");
         require(escrow.subcommitteeSize() == SUBCOMMITTEE_SIZE, "subcommittee mismatch");
+        require(escrow.PLATFORM_PAYOUT_WALLET() == platformPayoutWallet, "payout wallet mismatch");
     }
 
     function testRegistryInitializesTemplates() public view {
@@ -86,7 +88,7 @@ contract SomniBountyAITest {
         require(keccak256(bytes(project.name)) == keccak256("AstraVault"), "name mismatch");
         require(bytes(project.socialUrl).length > 0, "missing social");
         require(bytes(project.imageUrl).length > 0, "missing image");
-        require(project.agentPayoutWallet == agentWallet, "wallet mismatch");
+        require(project.agentPayoutWallet == platformPayoutWallet, "wallet mismatch");
     }
 
     function testRegisterProjectRejectsInvalidInputs() public {
@@ -102,17 +104,12 @@ contract SomniBountyAITest {
             agentWallet
         );
 
-        vm.prank(publisher);
-        vm.expectRevert(SomniBountyAI.InvalidPayoutRecipient.selector);
-        escrow.registerProject(
-            "AstraVault",
-            "description",
-            "",
-            "",
-            "https://github.com/example/repo",
-            bytes32("project"),
-            address(0)
-        );
+    }
+
+    function testRegisterProjectIgnoresProvidedPayoutWallet() public {
+        uint256 projectId = _registerProject();
+        SomniBountyAI.Project memory project = escrow.getProject(projectId);
+        require(project.agentPayoutWallet == platformPayoutWallet, "not platform wallet");
     }
 
     function testSetupBountyTiersRejectsBelowMinimum() public {
@@ -129,6 +126,7 @@ contract SomniBountyAITest {
         uint256 expectedFee = escrow.requiredJsonApiFee();
         uint256 value = escrow.quoteSetupBountyTiers(CRITICAL, HIGH, MEDIUM);
 
+        uint256 publisherBalanceBefore = publisher.balance;
         vm.prank(publisher);
         (uint256 scanJobId, uint256 requestId) =
             escrow.setupBountyTiers{ value: value }(projectId, CRITICAL, HIGH, MEDIUM);
@@ -141,6 +139,7 @@ contract SomniBountyAITest {
         (, uint256 pendingScanJobId,,,) = escrow.pendingAgentRequests(requestId);
         require(pendingScanJobId == scanJobId, "pending mismatch");
         require(platform.requestFees(requestId) == expectedFee, "fee mismatch");
+        require(publisher.balance == publisherBalanceBefore - value, "publisher did not pay");
     }
 
     function testScanPayloadUsesRealLlmInferStringSelector() public {
@@ -174,14 +173,14 @@ contract SomniBountyAITest {
         escrow.handleResponse(requestId, new Response[](0), ResponseStatus.Failed, _emptyRequest());
     }
 
-    function testFullAutomationCreatesPrAndPaysConfiguredAgentWallet() public {
+    function testFullAutomationCreatesPrAndPaysPlatformPayoutWallet() public {
         (uint256 projectId, uint256 requestId) = _fundAndRequestScan();
 
         platform.fulfillString(requestId, ResponseStatus.Success, "contract V.sol vulnerable");
         platform.fulfillString(2, ResponseStatus.Success, "CRITICAL");
         platform.fulfillString(3, ResponseStatus.Success, "VALID");
         platform.fulfillString(4, ResponseStatus.Success, "https://github.com/example/repo/pull/1");
-        uint256 walletBalanceBefore = agentWallet.balance;
+        uint256 walletBalanceBefore = platformPayoutWallet.balance;
         platform.fulfillString(5, ResponseStatus.Success, "VALID");
 
         SomniBountyAI.ScanJob memory job = escrow.getScanJob(1);
@@ -191,8 +190,8 @@ contract SomniBountyAITest {
         require(uint8(job.status) == uint8(SomniBountyAI.ScanStatus.CandidateFound), "bad job");
         require(uint8(incident.status) == uint8(SomniBountyAI.IncidentStatus.Paid), "not paid");
         require(submittedFix.paid, "fix not paid");
-        require(submittedFix.payoutRecipient == agentWallet, "recipient mismatch");
-        require(agentWallet.balance == walletBalanceBefore + CRITICAL, "wallet not paid");
+        require(submittedFix.payoutRecipient == platformPayoutWallet, "recipient mismatch");
+        require(platformPayoutWallet.balance == walletBalanceBefore + CRITICAL, "wallet not paid");
         require(critical == 0 && high == HIGH && medium == MEDIUM, "bad reserves");
     }
 
@@ -254,7 +253,7 @@ contract SomniBountyAITest {
         require(job.resultHash == keccak256("SNAPSHOT_FAILED"), "hash mismatch");
     }
 
-    function testSubmitFixUsesConfiguredAgentPayoutWallet() public {
+    function testSubmitFixUsesPlatformPayoutWallet() public {
         (uint256 incidentId,) = _openCriticalIncident();
 
         vm.prank(fixer);
@@ -262,7 +261,7 @@ contract SomniBountyAITest {
 
         SomniBountyAI.FixSubmission memory submittedFix = escrow.getFix(fixId);
         require(submittedFix.fixer == fixer, "fixer mismatch");
-        require(submittedFix.payoutRecipient == agentWallet, "recipient mismatch");
+        require(submittedFix.payoutRecipient == platformPayoutWallet, "recipient mismatch");
     }
 
     function testRepeatedCallbackCannotDoublePay() public {

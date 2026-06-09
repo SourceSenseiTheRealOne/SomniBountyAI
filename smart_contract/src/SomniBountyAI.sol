@@ -13,6 +13,9 @@ import {
 import { VulnerabilityRegistry } from "./VulnerabilityRegistry.sol";
 
 contract SomniBountyAI is IAgentRequesterHandler {
+    address public constant PLATFORM_PAYOUT_WALLET =
+        0xeE59b12EB683A346b3D8A4CB43d5aFa8AD3303F3;
+
     enum IncidentStatus {
         Open,
         ReviewPending,
@@ -282,13 +285,12 @@ contract SomniBountyAI is IAgentRequesterHandler {
         string calldata imageUrl,
         string calldata githubRepo,
         bytes32 metadataHash,
-        address agentPayoutWallet
+        address
     ) external returns (uint256 projectId) {
         if (bytes(name).length == 0 || bytes(description).length == 0) {
             revert InvalidMetadata();
         }
         if (bytes(githubRepo).length == 0) revert InvalidMetadata();
-        if (agentPayoutWallet == address(0)) revert InvalidPayoutRecipient();
 
         projectId = nextProjectId++;
         projectStore[projectId] = Project({
@@ -300,10 +302,10 @@ contract SomniBountyAI is IAgentRequesterHandler {
             socialUrl: socialUrl,
             imageUrl: imageUrl,
             githubRepo: githubRepo,
-            agentPayoutWallet: agentPayoutWallet
+            agentPayoutWallet: PLATFORM_PAYOUT_WALLET
         });
 
-        emit ProjectRegistered(projectId, msg.sender, agentPayoutWallet, metadataHash);
+        emit ProjectRegistered(projectId, msg.sender, PLATFORM_PAYOUT_WALLET, metadataHash);
         emit AgentLog(projectId, 0, "project registered", githubRepo);
     }
 
